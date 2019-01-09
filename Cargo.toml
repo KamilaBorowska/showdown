@@ -1,0 +1,12 @@
+[package]
+name = "pokemon-showdown-client"
+version = "0.1.0"
+authors = ["Konrad Borowski <konrad@borowski.pw>"]
+edition = "2018"
+
+[dependencies]
+reqwest = "0.9.6"
+websocket = {version = "0.22.1", default-features = false, features = ["sync", "sync-ssl"]}
+serde = "1.0.84"
+serde_derive = "1.0.84"
+serde_json = "1.0.34"
