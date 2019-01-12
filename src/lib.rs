@@ -26,33 +26,21 @@ impl Showdown {
     }
 
     pub fn fetch_server_url(name: &str) -> Result<Url> {
-        let text = Client::new()
-            .get("https://play.pokemonshowdown.com/crossdomain.php")
-            .query(&[("host", name)])
-            .send()
-            .and_then(|mut r| r.text())
-            .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
-        let outer_json =
-            text_between(&text, "var config = ", ";\n").ok_or(Error(ErrorInner::MissingConfig))?;
-        let config: Config = serde_json::from_str(outer_json)
-            .and_then(|inner_json: String| serde_json::from_str(&inner_json))
-            .map_err(|e| Error(ErrorInner::Json(e)))?;
-        (if config.host == "showdown" {
-            Url::parse("wss://sim2.psim.us/showdown/websocket")
-        } else if let Config {
-            host,
-            port: Some(port),
-        } = config
-        {
-            let protocol = if port == 443 { "wss" } else { "ws" };
-            // Concatenation is fine, as it's also done by the official Showdown client
-            Url::parse(&format!(
-                "{}://{}:{}/showdown/websocket",
-                protocol, host, port
+        let Server { host, port } = Client::new()
+            .get(&format!(
+                "https://pokemonshowdown.com/servers/{}.json",
+                name
             ))
-        } else {
-            return Err(Error(ErrorInner::MissingPort));
-        })
+            .send()
+            .and_then(|mut r| r.json())
+            .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
+
+        let protocol = if port == 443 { "wss" } else { "ws" };
+        // Concatenation is fine, as it's also done by the official Showdown client
+        Url::parse(&format!(
+            "{}://{}:{}/showdown/websocket",
+            protocol, host, port
+        ))
         .map_err(|e| Error(ErrorInner::Url(e)))
     }
 
@@ -80,14 +68,9 @@ impl fmt::Debug for Showdown {
 }
 
 #[derive(Deserialize)]
-struct Config {
+struct Server {
     host: String,
-    port: Option<u16>,
-}
-
-fn text_between<'a>(text: &'a str, start: &str, end: &str) -> Option<&'a str> {
-    let text = &text[text.find(start)? + start.len()..];
-    Some(&text[..text.find(end)?])
+    port: u16,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -112,11 +95,8 @@ impl Error {
 enum ErrorInner {
     WebSocket(WebSocketError),
     Reqwest(reqwest::Error),
-    Json(serde_json::Error),
     Url(url::ParseError),
     UnrecognizedMessage(OwnedMessage),
-    MissingConfig,
-    MissingPort,
 }
 
 impl Display for Error {
@@ -124,11 +104,8 @@ impl Display for Error {
         match &self.0 {
             ErrorInner::WebSocket(e) => e.fmt(f),
             ErrorInner::Reqwest(e) => e.fmt(f),
-            ErrorInner::Json(e) => e.fmt(f),
             ErrorInner::Url(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
-            ErrorInner::MissingConfig => f.write_str("Missing server configuration"),
-            ErrorInner::MissingPort => f.write_str("Missing port"),
         }
     }
 }
@@ -138,11 +115,8 @@ impl StdError for Error {
         match &self.0 {
             ErrorInner::WebSocket(e) => Some(e),
             ErrorInner::Reqwest(e) => Some(e),
-            ErrorInner::Json(e) => Some(e),
             ErrorInner::Url(e) => Some(e),
-            ErrorInner::UnrecognizedMessage(_)
-            | ErrorInner::MissingConfig
-            | ErrorInner::MissingPort => None,
+            ErrorInner::UnrecognizedMessage(_) => None,
         }
     }
 }

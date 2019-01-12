@@ -4,7 +4,7 @@ use pokemon_showdown_client::message::{Kind, QueryResponse, Room};
 use pokemon_showdown_client::{Result, Showdown};
 
 fn main() -> Result<()> {
-    let mut connection = Showdown::connect("play.pokemonshowdown.com")?;
+    let mut connection = Showdown::connect("showdown")?;
     connection.send_global_command("cmd rooms")?;
     loop {
         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = connection.receive()?.parse().kind
