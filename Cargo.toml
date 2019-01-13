@@ -5,11 +5,13 @@ authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2018"
 
 [dependencies]
+futures = "0.1.25"
 reqwest = "0.9.6"
-websocket = {version = "0.22.1", default-features = false, features = ["sync", "sync-ssl"]}
 serde = "1.0.84"
 serde_derive = "1.0.84"
 serde_json = "1.0.34"
+tokio = {version = "0.1.14", features = ["async-await-preview"]}
+websocket = {version = "0.22.1", default-features = false, features = ["async", "async-ssl"]}
 
 [dev-dependencies]
 comparator = "0.1.0"

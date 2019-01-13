@@ -4,12 +4,12 @@ use std::borrow::Cow;
 
 #[derive(Debug)]
 pub struct Message {
-    pub(super) message: String,
+    pub(super) text: String,
 }
 
 impl Message {
     pub fn parse(&self) -> ParsedMessage<'_> {
-        let full_message: &str = &self.message;
+        let full_message: &str = &self.text;
         let (room, message) = if full_message.starts_with('>') {
             let without_prefix = &full_message[1..];
             let index = without_prefix

@@ -1,14 +1,20 @@
+#![feature(async_await, await_macro, futures_api)]
+#![recursion_limit = "128"]
+
 use comparator::collections::BinaryHeap;
 use comparator::{comparing, Comparator};
 use pokemon_showdown_client::message::{Kind, QueryResponse, Room};
-use pokemon_showdown_client::{Result, Showdown};
+use pokemon_showdown_client::url::Url;
+use pokemon_showdown_client::{connect_to_url, Result};
+use tokio::await;
 
-fn main() -> Result<()> {
-    let mut connection = Showdown::connect("showdown")?;
-    connection.send_global_command("cmd rooms")?;
+async fn start() -> Result<()> {
+    let url = Url::parse("ws://sim2.psim.us/showdown/websocket").unwrap();
+    let (mut sender, mut receiver) = await!(connect_to_url(&url))?;
+    await!(sender.send_global_command("cmd rooms"))?;
     loop {
-        if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = connection.receive()?.parse().kind
-        {
+        let received = await!(receiver.receive())?;
+        if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.parse().kind {
             println!("Top 5 most popular rooms");
             let mut rooms_heap = BinaryHeap::with_comparator(
                 comparing(|r: &&Room| r.user_count)
@@ -25,4 +31,8 @@ fn main() -> Result<()> {
             return Ok(());
         }
     }
+}
+
+fn main() {
+    tokio::run_async(async { await!(start()).unwrap() });
 }
