@@ -11,7 +11,6 @@ async fn start(login: String, password: String) -> Result<()> {
     loop {
         let message = await!(receiver.receive())?;
         let parsed = message.parse();
-        println!("{:?}", parsed);
         match parsed.kind {
             Kind::Challenge(ch) => await!(ch.login_with_password(&mut sender, &login, &password))?,
             Kind::UpdateUser(UpdateUser { named: true, .. }) => {
