@@ -1,6 +1,11 @@
-use crate::RoomId;
+use crate::{Error, ErrorInner, RoomId, Sender};
+use futures03::{FutureExt, TryFutureExt};
+use reqwest::r#async::Client;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
+use std::str;
+use tokio::await;
+use tokio::prelude::*;
 
 #[derive(Debug)]
 pub struct Message {
@@ -51,17 +56,168 @@ pub struct ParsedMessage<'a> {
 
 #[derive(Debug)]
 pub enum Kind<'a> {
+    Challenge(Challenge<'a>),
+    RoomInit(RoomInit<'a>),
     QueryResponse(QueryResponse<'a>),
+    UpdateUser(UpdateUser<'a>),
     Unrecognized(UnrecognizedMessage<'a>),
 }
 
 impl Kind<'_> {
     fn parse<'a>(command: &str, arguments: &'a str) -> Option<Kind<'a>> {
         Some(match command {
+            "challstr" => Kind::Challenge(Challenge(arguments)),
+            "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
             "queryresponse" => Kind::QueryResponse(QueryResponse::parse(arguments)?),
+            "updateuser" => Kind::UpdateUser(UpdateUser::parse(arguments)?),
             _ => return None,
         })
     }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Challenge<'a>(&'a str);
+
+impl<'a> Challenge<'a> {
+    pub fn login(
+        self,
+        sender: &'a mut Sender,
+        login: &'a str,
+    ) -> impl Future<Item = Option<PasswordRequired<'a>>, Error = Error> + 'a {
+        let client = Client::new();
+        async move {
+            let request = client
+                .post("http://play.pokemonshowdown.com/action.php")
+                .form(&[
+                    ("act", "getassertion"),
+                    ("userid", login),
+                    ("challstr", self.0),
+                ]);
+            let response =
+                Error::from_reqwest(await!(request.send().and_then(|r| r.into_body().concat2())))?;
+            let response = str::from_utf8(&response).map_err(|e| Error(ErrorInner::Utf8(e)))?;
+            if response == ";" {
+                return Ok(Some(PasswordRequired {
+                    challstr: self,
+                    login,
+                    sender,
+                    client,
+                }));
+            }
+            await!(sender.send_global_command(&format!("trn {},0,{}", login, response)))?;
+            Ok(None)
+        }
+            .boxed()
+            .compat()
+    }
+
+    pub fn login_with_password(
+        self,
+        sender: &'a mut Sender,
+        login: &'a str,
+        password: &str,
+    ) -> impl Future<Item = (), Error = Error> + 'a {
+        self.login_with_password_and_client(sender, login, password, &Client::new())
+    }
+
+    fn login_with_password_and_client(
+        self,
+        sender: &'a mut Sender,
+        login: &'a str,
+        password: &str,
+        client: &Client,
+    ) -> impl Future<Item = (), Error = Error> + 'a {
+        let request = client
+            .post("http://play.pokemonshowdown.com/action.php")
+            .form(&[
+                ("act", "login"),
+                ("name", login),
+                ("pass", password),
+                ("challstr", self.0),
+            ]);
+        async move {
+            let response =
+                Error::from_reqwest(await!(request.send().and_then(|r| r.into_body().concat2())))?;
+            let LoginServerResponse { assertion } =
+                serde_json::from_slice(&response[1..]).map_err(|e| Error(ErrorInner::Json(e)))?;
+            await!(sender.send_global_command(&format!("trn {},0,{}", login, assertion)))?;
+            Ok(())
+        }
+            .boxed()
+            .compat()
+    }
+}
+
+pub struct PasswordRequired<'a> {
+    challstr: Challenge<'a>,
+    login: &'a str,
+    sender: &'a mut Sender,
+    client: Client,
+}
+
+impl<'a> PasswordRequired<'a> {
+    pub fn login_with_password(
+        &'a mut self,
+        password: &str,
+    ) -> impl Future<Item = (), Error = Error> + 'a {
+        self.challstr.login_with_password_and_client(
+            self.sender,
+            self.login,
+            password,
+            &self.client,
+        )
+    }
+}
+
+#[derive(Deserialize)]
+struct LoginServerResponse<'a> {
+    #[serde(borrow)]
+    assertion: Cow<'a, str>,
+}
+
+#[derive(Debug)]
+pub struct RoomInit<'a> {
+    room_type: RoomType,
+    title: &'a str,
+    users: &'a str,
+}
+
+impl RoomInit<'_> {
+    fn parse(arguments: &str) -> Option<RoomInit<'_>> {
+        let mut lines = arguments.split('\n');
+        let room_type = match lines.next()? {
+            "chat" => RoomType::Chat,
+            "battle" => RoomType::Battle,
+            _ => return None,
+        };
+        let mut title = None;
+        let mut users = None;
+        for line in lines {
+            if line.is_empty() {
+                continue;
+            }
+            if !line.starts_with("|") {
+                return None;
+            }
+            let (command, arguments) = split2(&line[1..]);
+            match command {
+                "title" => title = Some(arguments),
+                "users" => users = Some(arguments),
+                _ => {}
+            }
+        }
+        Some(RoomInit {
+            room_type,
+            title: title?,
+            users: users?,
+        })
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum RoomType {
+    Chat,
+    Battle,
 }
 
 #[derive(Debug)]
@@ -112,6 +268,34 @@ pub struct Room<'a> {
     pub user_count: u32,
     #[serde(borrow, default)]
     pub sub_rooms: Vec<Cow<'a, str>>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct UpdateUser<'a> {
+    pub username: &'a str,
+    pub named: bool,
+    pub avatar: &'a str,
+}
+
+impl<'a> UpdateUser<'a> {
+    fn parse(arguments: &'a str) -> Option<UpdateUser<'a>> {
+        let mut parts = arguments.split('|');
+        let username = parts.next()?;
+        let named = match parts.next()? {
+            "0" => false,
+            "1" => true,
+            _ => return None,
+        };
+        let mut avatar = parts.next()?;
+        if let Some(index) = avatar.find('\n') {
+            avatar = &avatar[..index];
+        }
+        Some(Self {
+            username,
+            named,
+            avatar,
+        })
+    }
 }
 
 #[derive(Debug)]

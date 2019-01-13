@@ -4,13 +4,11 @@
 use comparator::collections::BinaryHeap;
 use comparator::{comparing, Comparator};
 use pokemon_showdown_client::message::{Kind, QueryResponse, Room};
-use pokemon_showdown_client::url::Url;
-use pokemon_showdown_client::{connect_to_url, Result};
+use pokemon_showdown_client::{connect, Result};
 use tokio::await;
 
 async fn start() -> Result<()> {
-    let url = Url::parse("ws://sim2.psim.us/showdown/websocket").unwrap();
-    let (mut sender, mut receiver) = await!(connect_to_url(&url))?;
+    let (mut sender, mut receiver) = await!(connect("showdown"))?;
     await!(sender.send_global_command("cmd rooms"))?;
     loop {
         let received = await!(receiver.receive())?;

@@ -9,6 +9,7 @@ use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::result::Result as StdResult;
+use std::str::Utf8Error;
 use std::time::{Duration, Instant};
 use tokio::await;
 use tokio::prelude::stream::{SplitSink, SplitStream};
@@ -52,7 +53,18 @@ impl Sender {
         &mut self,
         command: &str,
     ) -> impl Future<Item = (), Error = Error> + '_ {
-        let message = format!("|/{}", command);
+        self.send(format!("|/{}", command))
+    }
+
+    pub fn send_chat_message(
+        &mut self,
+        room_id: RoomId<'_>,
+        message: &str,
+    ) -> impl Future<Item = (), Error = Error> + '_ {
+        self.send(format!("{}|{}", room_id.0, message))
+    }
+
+    fn send(&mut self, message: String) -> impl Future<Item = (), Error = Error> + '_ {
         (&mut self.sender)
             .send(OwnedMessage::Text(message))
             .map(|_| ())
@@ -74,14 +86,13 @@ pub async fn connect_to_url(url: &Url) -> Result<(Sender, Receiver)> {
 }
 
 pub async fn fetch_server_url(name: &str) -> Result<Url> {
-    let Server { host, port } = await!(Client::new()
+    let Server { host, port } = Error::from_reqwest(await!(Client::new()
         .get(&format!(
             "https://pokemonshowdown.com/servers/{}.json",
             name
         ))
         .send()
-        .and_then(|mut r| r.json())
-        .map_err(|e| Error(ErrorInner::Reqwest(e))))?;
+        .and_then(|mut r| r.json())))?;
     let protocol = if port == 443 { "wss" } else { "ws" };
     // Concatenation is fine, as it's also done by the official Showdown client
     Url::parse(&format!(
@@ -124,6 +135,10 @@ impl Error {
     fn from_ws<T>(r: StdResult<T, WebSocketError>) -> Result<T> {
         r.map_err(|e| Error(ErrorInner::WebSocket(e)))
     }
+
+    fn from_reqwest<T>(r: StdResult<T, reqwest::Error>) -> Result<T> {
+        r.map_err(|e| Error(ErrorInner::Reqwest(e)))
+    }
 }
 
 #[derive(Debug)]
@@ -132,6 +147,8 @@ enum ErrorInner {
     Reqwest(reqwest::Error),
     Url(url::ParseError),
     Mpsc(mpsc::SendError<OwnedMessage>),
+    Utf8(Utf8Error),
+    Json(serde_json::Error),
     UnrecognizedMessage(Option<OwnedMessage>),
 }
 
@@ -142,6 +159,8 @@ impl Display for Error {
             ErrorInner::Reqwest(e) => e.fmt(f),
             ErrorInner::Url(e) => e.fmt(f),
             ErrorInner::Mpsc(e) => e.fmt(f),
+            ErrorInner::Utf8(e) => e.fmt(f),
+            ErrorInner::Json(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
         }
     }
@@ -154,6 +173,8 @@ impl StdError for Error {
             ErrorInner::Reqwest(e) => Some(e),
             ErrorInner::Url(e) => Some(e),
             ErrorInner::Mpsc(e) => Some(e),
+            ErrorInner::Utf8(e) => Some(e),
+            ErrorInner::Json(e) => Some(e),
             ErrorInner::UnrecognizedMessage(_) => None,
         }
     }
