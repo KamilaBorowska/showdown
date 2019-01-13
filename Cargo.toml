@@ -5,6 +5,7 @@ authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2018"
 
 [dependencies]
+chrono = "0.4.6"
 futures = "0.1.25"
 futures03 = {package = "futures-preview", version = "0.3.0-alpha.11", features = ["compat"]}
 reqwest = "0.9.6"

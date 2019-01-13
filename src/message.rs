@@ -1,4 +1,5 @@
 use crate::{Error, ErrorInner, RoomId, Sender};
+use chrono::NaiveDateTime;
 use futures03::{FutureExt, TryFutureExt};
 use reqwest::r#async::Client;
 use serde_derive::Deserialize;
@@ -56,6 +57,7 @@ pub struct ParsedMessage<'a> {
 
 #[derive(Debug)]
 pub enum Kind<'a> {
+    Chat(Chat<'a>),
     Challenge(Challenge<'a>),
     RoomInit(RoomInit<'a>),
     QueryResponse(QueryResponse<'a>),
@@ -66,11 +68,35 @@ pub enum Kind<'a> {
 impl Kind<'_> {
     fn parse<'a>(command: &str, arguments: &'a str) -> Option<Kind<'a>> {
         Some(match command {
+            "c:" => Kind::Chat(Chat::parse(arguments)?),
             "challstr" => Kind::Challenge(Challenge(arguments)),
             "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
             "queryresponse" => Kind::QueryResponse(QueryResponse::parse(arguments)?),
             "updateuser" => Kind::UpdateUser(UpdateUser::parse(arguments)?),
             _ => return None,
+        })
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Chat<'a> {
+    pub timestamp: NaiveDateTime,
+    pub user: &'a str,
+    pub message: &'a str,
+}
+
+impl<'a> Chat<'a> {
+    fn parse(arguments: &'a str) -> Option<Self> {
+        let (timestamp, arguments) = split2(arguments);
+        let timestamp = NaiveDateTime::from_timestamp(timestamp.parse().ok()?, 0);
+        let (user, mut message) = split2(arguments);
+        if message.ends_with('\n') {
+            message = &message[..message.len() - 1];
+        }
+        Some(Self {
+            timestamp,
+            user,
+            message,
         })
     }
 }
@@ -196,7 +222,7 @@ impl RoomInit<'_> {
             if line.is_empty() {
                 continue;
             }
-            if !line.starts_with("|") {
+            if !line.starts_with('|') {
                 return None;
             }
             let (command, arguments) = split2(&line[1..]);

@@ -3,6 +3,7 @@
 pub mod message;
 
 use self::message::Message;
+pub use chrono;
 use futures::sync::mpsc;
 use reqwest::r#async::Client;
 use serde_derive::Deserialize;
