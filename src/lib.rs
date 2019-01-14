@@ -121,7 +121,7 @@ struct Server {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RoomId<'a>(&'a str);
+pub struct RoomId<'a>(pub &'a str);
 
 impl RoomId<'_> {
     pub const LOBBY: RoomId<'static> = RoomId("");
