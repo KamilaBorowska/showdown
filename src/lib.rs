@@ -31,7 +31,7 @@ impl fmt::Debug for Receiver {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Sender {
     sender: mpsc::Sender<OwnedMessage>,
 }
