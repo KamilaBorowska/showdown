@@ -137,6 +137,7 @@ impl RoomId<'_> {
 
 pub type Result<T> = StdResult<T, Error>;
 
+/// A specialized `Result` type for Showdown client operations.
 #[derive(Debug)]
 pub struct Error(ErrorInner);
 
