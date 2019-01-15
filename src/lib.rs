@@ -5,6 +5,7 @@ pub mod message;
 use self::message::Message;
 pub use chrono;
 use futures::sync::mpsc;
+use futures03::{FutureExt, TryFutureExt};
 use reqwest::r#async::Client;
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
@@ -73,44 +74,51 @@ impl Sender {
     }
 }
 
-pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
-    let url = await!(fetch_server_url(name))?;
-    await!(connect_to_url(&url))
+pub fn connect(name: &str) -> impl Future<Item = (Sender, Receiver), Error = Error> {
+    fetch_server_url(name).and_then(|url| connect_to_url(&url))
 }
 
-pub async fn connect_to_url(url: &Url) -> Result<(Sender, Receiver)> {
-    let (sink, stream) =
-        Error::from_ws(await!(ClientBuilder::from_url(url).async_connect_insecure()))?
-            .0
-            .split();
-    Ok((Sender::new(sink), Receiver { stream }))
+pub fn connect_to_url(url: &Url) -> impl Future<Item = (Sender, Receiver), Error = Error> {
+    ClientBuilder::from_url(url)
+        .async_connect_insecure()
+        .then(|r| {
+            let (sink, stream) = Error::from_ws(r)?.0.split();
+            Ok((Sender::new(sink), Receiver { stream }))
+        })
 }
 
-pub async fn fetch_server_url(name: &str) -> Result<Url> {
-    let Server { host, port } = Error::from_reqwest(await!(Client::new()
+pub fn fetch_server_url(name: &str) -> impl Future<Item = Url, Error = Error> {
+    Client::new()
         .get(&format!(
             "https://pokemonshowdown.com/servers/{}.json",
             name
         ))
         .send()
-        .and_then(|mut r| r.json())))?;
-    let protocol = if port == 443 { "wss" } else { "ws" };
-    // Concatenation is fine, as it's also done by the official Showdown client
-    Url::parse(&format!(
-        "{}://{}:{}/showdown/websocket",
-        protocol, host, port
-    ))
-    .map_err(|e| Error(ErrorInner::Url(e)))
+        .and_then(|mut r| r.json())
+        .then(|result| {
+            let Server { host, port } = Error::from_reqwest(result)?;
+            let protocol = if port == 443 { "wss" } else { "ws" };
+            // Concatenation is fine, as it's also done by the official Showdown client
+            Url::parse(&format!(
+                "{}://{}:{}/showdown/websocket",
+                protocol, host, port
+            ))
+            .map_err(|e| Error(ErrorInner::Url(e)))
+        })
 }
 
 impl Receiver {
-    pub async fn receive(&mut self) -> Result<Message> {
-        let message = Error::from_ws(await!((&mut self.stream).next()).transpose())?;
-        if let Some(OwnedMessage::Text(text)) = message {
-            Ok(Message { text })
-        } else {
-            Err(Error(ErrorInner::UnrecognizedMessage(message)))
+    pub fn receive(&mut self) -> impl Future<Item = Message, Error = Error> + '_ {
+        async move {
+            let message = Error::from_ws(await!((&mut self.stream).next()).transpose())?;
+            if let Some(OwnedMessage::Text(text)) = message {
+                Ok(Message { text })
+            } else {
+                Err(Error(ErrorInner::UnrecognizedMessage(message)))
+            }
         }
+            .boxed()
+            .compat()
     }
 }
 
