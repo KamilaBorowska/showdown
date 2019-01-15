@@ -67,12 +67,10 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 ///     Ok(())
 /// }
 /// 
-/// fn main() {
-///     Runtime::new()
-///         .unwrap()
-///         .block_on_all(start().boxed().compat())
-///         .unwrap();
-/// }
+/// Runtime::new()
+///     .unwrap()
+///     .block_on_all(start().boxed().compat())
+///     .unwrap();
 /// ```
 pub struct Receiver {
     stream: SplitStream<websocket::r#async::Client<TcpStream>>,
