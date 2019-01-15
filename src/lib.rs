@@ -82,6 +82,7 @@ impl fmt::Debug for Receiver {
     }
 }
 
+/// Message sender.
 #[derive(Clone, Debug)]
 pub struct Sender {
     sender: mpsc::Sender<OwnedMessage>,
@@ -101,6 +102,38 @@ impl Sender {
         Self { sender }
     }
 
+    /// Sends a global command.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![recursion_limit = "128"]
+    /// 
+    /// use futures03::prelude::{FutureExt, *};
+    /// use pokemon_showdown_client::message::{Kind, ParsedMessage, QueryResponse};
+    /// use pokemon_showdown_client::{connect, Result, RoomId};
+    /// use tokio::await;
+    /// use tokio::prelude::*;
+    /// use tokio::runtime::Runtime;
+    /// 
+    /// async fn start() -> Result<()> {
+    ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
+    ///     await!(sender.send_global_command("cmd rooms"))?;
+    ///     loop {
+    ///         let received = await!(receiver.receive())?;
+    ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.parse().kind {
+    ///             assert!(rooms.official.iter().any(|room| room.title == "Tournaments"));
+    ///             return Ok(());
+    ///         }
+    ///     }
+    /// }
+    /// 
+    /// Runtime::new()
+    ///     .unwrap()
+    ///     .block_on_all(start().boxed().compat())
+    ///     .unwrap();
+    /// ```
     pub fn send_global_command(
         &mut self,
         command: &str,
