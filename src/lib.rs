@@ -39,14 +39,14 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 /// ```
 /// #![feature(async_await, await_macro, futures_api)]
 /// #![recursion_limit = "128"]
-/// 
+///
 /// use futures03::prelude::{FutureExt, *};
 /// use pokemon_showdown_client::message::{Kind, ParsedMessage, UpdateUser};
 /// use pokemon_showdown_client::{connect, Result, RoomId};
 /// use tokio::await;
 /// use tokio::prelude::*;
 /// use tokio::runtime::Runtime;
-/// 
+///
 /// async fn start() -> Result<()> {
 ///     let (_, mut receiver) = await!(connect("showdown"))?;
 ///     let message = await!(receiver.receive())?;
@@ -66,7 +66,7 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 ///     }
 ///     Ok(())
 /// }
-/// 
+///
 /// Runtime::new()
 ///     .unwrap()
 ///     .block_on_all(start().boxed().compat())
@@ -103,20 +103,20 @@ impl Sender {
     }
 
     /// Sends a global command.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
     /// #![recursion_limit = "128"]
-    /// 
+    ///
     /// use futures03::prelude::{FutureExt, *};
     /// use pokemon_showdown_client::message::{Kind, ParsedMessage, QueryResponse};
     /// use pokemon_showdown_client::{connect, Result, RoomId};
     /// use tokio::await;
     /// use tokio::prelude::*;
     /// use tokio::runtime::Runtime;
-    /// 
+    ///
     /// async fn start() -> Result<()> {
     ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
     ///     await!(sender.send_global_command("cmd rooms"))?;
@@ -128,7 +128,7 @@ impl Sender {
     ///         }
     ///     }
     /// }
-    /// 
+    ///
     /// Runtime::new()
     ///     .unwrap()
     ///     .block_on_all(start().boxed().compat())
@@ -141,6 +141,36 @@ impl Sender {
         self.send(format!("|/{}", command))
     }
 
+    /// Sends a message in a chat room.
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![recursion_limit = "128"]
+    ///
+    /// use futures03::prelude::{FutureExt, *};
+    /// use pokemon_showdown_client::message::{Kind, ParsedMessage, QueryResponse};
+    /// use pokemon_showdown_client::{connect, Result, RoomId};
+    /// use tokio::await;
+    /// use tokio::prelude::*;
+    /// use tokio::runtime::Runtime;
+    ///
+    /// async fn start() -> Result<()> {
+    ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
+    ///     await!(sender.send_global_command("join lobby"))?;
+    ///     await!(sender.send_chat_message(RoomId::LOBBY, "/roomdesc"));
+    ///     loop {
+    ///         if let Kind::Html(html) = await!(receiver.receive())?.parse().kind {
+    ///             assert!(html.contains("Relax here amidst the chaos."));
+    ///             return Ok(());
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// Runtime::new()
+    ///     .unwrap()
+    ///     .block_on_all(start().boxed().compat())
+    ///     .unwrap();
+    /// ```
     pub fn send_chat_message(
         &mut self,
         room_id: RoomId<'_>,

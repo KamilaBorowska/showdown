@@ -59,6 +59,7 @@ pub struct ParsedMessage<'a> {
 pub enum Kind<'a> {
     Chat(Chat<'a>),
     Challenge(Challenge<'a>),
+    Html(&'a str),
     RoomInit(RoomInit<'a>),
     QueryResponse(QueryResponse<'a>),
     UpdateUser(UpdateUser<'a>),
@@ -70,6 +71,7 @@ impl Kind<'_> {
         Some(match command {
             "c:" => Kind::Chat(Chat::parse(arguments)?),
             "challstr" => Kind::Challenge(Challenge(arguments)),
+            "html" => Kind::Html(arguments),
             "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
             "queryresponse" => Kind::QueryResponse(QueryResponse::parse(arguments)?),
             "updateuser" => Kind::UpdateUser(UpdateUser::parse(arguments)?),
