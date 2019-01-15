@@ -39,33 +39,40 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 /// ```
 /// #![feature(async_await, await_macro, futures_api)]
 /// #![recursion_limit = "128"]
-///
+/// 
 /// use futures03::prelude::{FutureExt, *};
-/// use pokemon_showdown_client::{connect, Result, RoomId};
 /// use pokemon_showdown_client::message::{Kind, ParsedMessage, UpdateUser};
+/// use pokemon_showdown_client::{connect, Result, RoomId};
 /// use tokio::await;
 /// use tokio::prelude::*;
 /// use tokio::runtime::Runtime;
-///
+/// 
 /// async fn start() -> Result<()> {
 ///     let (_, mut receiver) = await!(connect("showdown"))?;
 ///     let message = await!(receiver.receive())?;
 ///     match message.parse() {
 ///         ParsedMessage {
 ///             room_id: RoomId(""),
-///             kind: Kind::UpdateUser(UpdateUser { username, named: false, .. }),
+///             kind:
+///                 Kind::UpdateUser(UpdateUser {
+///                     username,
+///                     named: false,
+///                     ..
+///                 }),
 ///         } => {
 ///             assert!(username.starts_with("Guest "));
 ///         }
 ///         _ => panic!(),
 ///     }
 ///     Ok(())
-/// };
-///
-/// Runtime::new()
-///     .unwrap()
-///     .block_on_all(start().boxed().compat())
-///     .unwrap();
+/// }
+/// 
+/// fn main() {
+///     Runtime::new()
+///         .unwrap()
+///         .block_on_all(start().boxed().compat())
+///         .unwrap();
+/// }
 /// ```
 pub struct Receiver {
     stream: SplitStream<websocket::r#async::Client<TcpStream>>,
