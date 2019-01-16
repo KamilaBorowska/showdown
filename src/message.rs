@@ -14,6 +14,9 @@ pub struct Message {
 }
 
 impl Message {
+    /// Parses an owned message
+    ///
+    /// This function needs to exist due to self-borrow involved.
     pub fn parse(&self) -> ParsedMessage<'_> {
         let full_message: &str = &self.text;
         let (room, message) = if full_message.starts_with('>') {
