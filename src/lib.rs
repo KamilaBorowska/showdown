@@ -196,28 +196,26 @@ impl Sender {
 /// 
 /// # Examples
 /// 
-    /// Sends a message in a chat room.
-    ///
-    /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// #![recursion_limit = "128"]
-    ///
-    /// use futures03::prelude::{FutureExt, *};
-    /// use pokemon_showdown_client::{connect, Result};
-    /// use tokio::await;
-    /// use tokio::prelude::*;
-    /// use tokio::runtime::Runtime;
-    ///
-    /// async fn start() {
-    ///     assert!(await!(connect("showdown")).is_ok());
-    ///     assert!(await!(connect("fakestofservers")).is_err());
-    /// }
-    ///
-    /// Runtime::new()
-    ///     .unwrap()
-    ///     .block_on_all(start().unit_error().boxed().compat())
-    ///     .unwrap();
-    /// ```
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
+/// #![recursion_limit = "128"]
+///
+/// use futures03::prelude::{FutureExt, *};
+/// use pokemon_showdown_client::{connect, Result};
+/// use tokio::await;
+/// use tokio::prelude::*;
+/// use tokio::runtime::Runtime;
+///
+/// async fn start() {
+///     assert!(await!(connect("showdown")).is_ok());
+///     assert!(await!(connect("fakestofservers")).is_err());
+/// }
+///
+/// Runtime::new()
+///     .unwrap()
+///     .block_on_all(start().unit_error().boxed().compat())
+///     .unwrap();
+/// ```
 pub fn connect(name: &str) -> impl Future<Item = (Sender, Receiver), Error = Error> {
     fetch_server_url(name).and_then(|url| connect_to_url(&url))
 }
