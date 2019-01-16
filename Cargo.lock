@@ -1019,7 +1019,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "showdown"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "comparator 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
