@@ -148,10 +148,7 @@ impl<'a> Challenge<'a> {
     ///             _ => {}
     ///         }
     ///     }
-    ///     let chars: Vec<_> = (b'a'..b'z').chain(b'0'..b'9').map(char::from).collect();
-    ///     let name: String = (0..16)
-    ///         .map(|_| chars.choose(&mut thread_rng()).unwrap())
-    ///         .collect();
+    ///     let name = random_username();
     ///     await!(challenge.unwrap().login(&mut sender, &name))?;
     ///     await!(sender.send_global_command("join bot dev"))?;
     ///     loop {
@@ -159,6 +156,13 @@ impl<'a> Challenge<'a> {
     ///             return Ok(());
     ///         }
     ///     }
+    /// }
+    ///
+    /// fn random_username() -> String {
+    ///     let chars: Vec<_> = (b'a'..b'z').chain(b'0'..b'9').map(char::from).collect();
+    ///     (0..16)
+    ///         .map(|_| chars.choose(&mut thread_rng()).unwrap())
+    ///         .collect()
     /// }
     ///
     /// Runtime::new()
