@@ -1,6 +1,6 @@
 test:nightly:
   script:
-  - &print_version rustup update && rustc --version && cargo --version
+  - &print_version rustc --version && cargo --version
   - cargo test --all --verbose
   - cd enum-map
   - cargo test --all-features --verbose
