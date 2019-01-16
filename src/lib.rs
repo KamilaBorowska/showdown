@@ -85,12 +85,12 @@ impl fmt::Debug for Receiver {
 /// Message sender.
 #[derive(Clone, Debug)]
 pub struct Sender {
-    sender: mpsc::Sender<OwnedMessage>,
+    sender: mpsc::UnboundedSender<OwnedMessage>,
 }
 
 impl Sender {
     fn new(mut sink: SplitSink<websocket::r#async::Client<TcpStream>>) -> Sender {
-        let (sender, mut receiver) = mpsc::channel(10);
+        let (sender, mut receiver) = mpsc::unbounded();
         tokio::spawn_async(
             async move {
                 while let Some(m) = await!(receiver.next()) {
