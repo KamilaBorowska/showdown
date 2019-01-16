@@ -142,6 +142,8 @@ impl Sender {
     }
 
     /// Sends a message in a chat room.
+    /// 
+    /// # Examples
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
