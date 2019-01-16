@@ -306,7 +306,7 @@ pub struct UpdateUser<'a> {
 }
 
 impl<'a> UpdateUser<'a> {
-    fn parse(arguments: &'a str) -> Option<UpdateUser<'a>> {
+    fn parse(arguments: &'a str) -> Option<Self> {
         let mut parts = arguments.split('|');
         let username = parts.next()?;
         let named = match parts.next()? {
