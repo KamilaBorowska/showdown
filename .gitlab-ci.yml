@@ -4,18 +4,18 @@ test:nightly:
   - cargo test --all --verbose
   - cd enum-map
   - cargo test --all-features --verbose
-  image: rustlang/rust:nightly
+  image: liuchong/rustup:nightly
 
 clippy:
   script:
   - *print_version
   - rustup component add clippy-preview
   - cargo clippy --verbose
-  image: rustlang/rust:nightly
+  image: liuchong/rustup:nightly
 
 rustfmt:
   script:
   - *print_version
   - rustup component add rustfmt-preview
   - cargo fmt -- --check
-  image: rustlang/rust:nightly
+  image: liuchong/rustup:nightly
