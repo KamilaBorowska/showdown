@@ -41,8 +41,8 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 /// #![recursion_limit = "128"]
 ///
 /// use futures03::prelude::{FutureExt, *};
-/// use pokemon_showdown_client::message::{Kind, ParsedMessage, UpdateUser};
-/// use pokemon_showdown_client::{connect, Result, RoomId};
+/// use showdown::message::{Kind, ParsedMessage, UpdateUser};
+/// use showdown::{connect, Result, RoomId};
 /// use tokio::await;
 /// use tokio::prelude::*;
 /// use tokio::runtime::Runtime;
@@ -111,8 +111,8 @@ impl Sender {
     /// #![recursion_limit = "128"]
     ///
     /// use futures03::prelude::{FutureExt, *};
-    /// use pokemon_showdown_client::message::{Kind, ParsedMessage, QueryResponse};
-    /// use pokemon_showdown_client::{connect, Result, RoomId};
+    /// use showdown::message::{Kind, ParsedMessage, QueryResponse};
+    /// use showdown::{connect, Result, RoomId};
     /// use tokio::await;
     /// use tokio::prelude::*;
     /// use tokio::runtime::Runtime;
@@ -153,8 +153,8 @@ impl Sender {
     /// #![recursion_limit = "128"]
     ///
     /// use futures03::prelude::{FutureExt, *};
-    /// use pokemon_showdown_client::message::{Kind, ParsedMessage, QueryResponse};
-    /// use pokemon_showdown_client::{connect, Result, RoomId};
+    /// use showdown::message::{Kind, ParsedMessage, QueryResponse};
+    /// use showdown::{connect, Result, RoomId};
     /// use tokio::await;
     /// use tokio::prelude::*;
     /// use tokio::runtime::Runtime;
@@ -206,7 +206,7 @@ impl Sender {
 /// #![recursion_limit = "128"]
 ///
 /// use futures03::prelude::{FutureExt, *};
-/// use pokemon_showdown_client::{connect, Result};
+/// use showdown::{connect, Result};
 /// use tokio::await;
 /// use tokio::prelude::*;
 /// use tokio::runtime::Runtime;

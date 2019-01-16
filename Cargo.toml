@@ -1,5 +1,5 @@
 [package]
-name = "pokemon-showdown-client"
+name = "showdown"
 version = "0.1.0"
 authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2018"

@@ -1,8 +1,8 @@
 #![feature(async_await, await_macro, futures_api)]
 #![recursion_limit = "128"]
 
-use pokemon_showdown_client::message::{Chat, Kind, UpdateUser};
-use pokemon_showdown_client::{connect, Result};
+use showdown::message::{Chat, Kind, UpdateUser};
+use showdown::{connect, Result};
 use std::env;
 use tokio::await;
 

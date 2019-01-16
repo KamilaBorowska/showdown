@@ -3,8 +3,8 @@
 
 use comparator::collections::BinaryHeap;
 use comparator::{comparing, Comparator};
-use pokemon_showdown_client::message::{Kind, QueryResponse, Room};
-use pokemon_showdown_client::{connect, Result};
+use showdown::message::{Kind, QueryResponse, Room};
+use showdown::{connect, Result};
 use tokio::await;
 
 async fn start() -> Result<()> {

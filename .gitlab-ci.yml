@@ -30,8 +30,8 @@ pages:
     echo "
       <!DOCTYPE html>
       <title>Redirection page</title>
-      <meta http-equiv=refresh content='0; url=pokemon_showdown_client/'>
-      <p> Please check out <a href='pokemon_showdown_client/'>pokemon_showdown_client</a> documentation.
+      <meta http-equiv=refresh content='0; url=showdown/'>
+      <p> Please check out <a href='showdown/'>showdown</a> documentation.
     " > public/index.html
   artifacts:
     paths:

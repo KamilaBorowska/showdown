@@ -119,8 +119,8 @@ impl<'a> Challenge<'a> {
     /// #![recursion_limit = "128"]
     ///
     /// use futures03::prelude::{FutureExt, *};
-    /// use pokemon_showdown_client::message::{Kind, NoInit, NoInitKind};
-    /// use pokemon_showdown_client::{connect, Result, RoomId};
+    /// use showdown::message::{Kind, NoInit, NoInitKind};
+    /// use showdown::{connect, Result, RoomId};
     /// use rand::prelude::*;
     /// use tokio::await;
     /// use tokio::prelude::*;
