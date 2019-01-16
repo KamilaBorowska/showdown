@@ -1,9 +1,7 @@
 test:nightly:
   script:
   - &print_version rustc --version && cargo --version
-  - cargo test --all --verbose
-  - cd enum-map
-  - cargo test --all-features --verbose
+  - cargo test --verbose
   image: rustlang/rust:nightly
 
 clippy:
