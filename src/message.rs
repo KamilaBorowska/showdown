@@ -15,8 +15,8 @@ pub struct Message {
 
 /// Owned message type
 ///
-/// To do something useful, it's usually necessary to call its [`Message::parse`]
-/// method.
+/// To do something useful, it's usually necessary to call its
+/// [`Message::parse`] method.
 impl Message {
     /// Parses an owned message
     ///
