@@ -281,7 +281,7 @@ impl RoomsList<'_> {
         serde_json::from_str(arguments).ok()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Room> {
+    pub fn iter(&self) -> impl Iterator<Item = &Room<'_>> {
         self.official.iter().chain(&self.pspl).chain(&self.chat)
     }
 }

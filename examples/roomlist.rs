@@ -15,8 +15,8 @@ async fn start() -> Result<()> {
         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.parse().kind {
             println!("Top 5 most popular rooms");
             let mut rooms_heap = BinaryHeap::with_comparator(
-                comparing(|r: &&Room| r.user_count)
-                    .then_comparing(comparing(|r: &&Room| &r.title).reversed()),
+                comparing(|r: &&Room<'_>| r.user_count)
+                    .then_comparing(comparing(|r: &&Room<'_>| &r.title).reversed()),
             );
             rooms_heap.extend(rooms.iter());
             for _ in 0..5 {

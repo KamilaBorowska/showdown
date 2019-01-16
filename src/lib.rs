@@ -77,7 +77,7 @@ pub struct Receiver {
 }
 
 impl fmt::Debug for Receiver {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Receiver").finish()
     }
 }
@@ -307,7 +307,7 @@ enum ErrorInner {
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             ErrorInner::WebSocket(e) => e.fmt(f),
             ErrorInner::Reqwest(e) => e.fmt(f),
