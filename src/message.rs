@@ -105,6 +105,7 @@ impl<'a> Chat<'a> {
     }
 }
 
+/// Login challenge.
 #[derive(Copy, Clone, Debug)]
 pub struct Challenge<'a>(&'a str);
 
