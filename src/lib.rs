@@ -8,7 +8,7 @@
 //! depreciation period for removed features. Don't use this crate if you
 //! aren't prepared for constant breakage.
 
-#![feature(async_await, await_macro, futures_api, transpose_result)]
+#![feature(async_await, await_macro, futures_api)]
 
 pub mod message;
 
