@@ -123,7 +123,10 @@ impl Sender {
     ///     loop {
     ///         let received = await!(receiver.receive())?;
     ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.parse().kind {
-    ///             assert!(rooms.official.iter().any(|room| room.title == "Tournaments"));
+    ///             assert!(rooms
+    ///                 .official
+    ///                 .iter()
+    ///                 .any(|room| room.title == "Tournaments"));
     ///             return Ok(());
     ///         }
     ///     }
@@ -191,10 +194,10 @@ impl Sender {
 
 /// Connects to a named Showdown server.
 ///
-/// Returns two structures, [`Sender`] can be used to send messages to Showdown, while
-/// [`Receiver`] can be used to retrieve messages from Showdown. Due to borrow checker,
-/// those structures are separate - it's practically necessary to implement anything
-/// interesting.
+/// Returns two structures, [`Sender`] can be used to send messages to Showdown,
+/// while [`Receiver`] can be used to retrieve messages from Showdown. Due to
+/// borrow checker, those structures are separate - it's practically necessary
+/// to implement anything interesting.
 ///
 /// # Examples
 ///

@@ -141,12 +141,17 @@ impl<'a> Challenge<'a> {
     ///                     _ => unreachable!(),
     ///                 }
     ///             }
-    ///             Kind::NoInit(NoInit { kind: NoInitKind::NameRequired, .. }) => break,
+    ///             Kind::NoInit(NoInit {
+    ///                 kind: NoInitKind::NameRequired,
+    ///                 ..
+    ///             }) => break,
     ///             _ => {}
     ///         }
     ///     }
     ///     let chars: Vec<_> = (b'a'..b'z').chain(b'0'..b'9').map(char::from).collect();
-    ///     let name: String = (0..16).map(|_| chars.choose(&mut thread_rng()).unwrap()).collect();
+    ///     let name: String = (0..16)
+    ///         .map(|_| chars.choose(&mut thread_rng()).unwrap())
+    ///         .collect();
     ///     await!(challenge.unwrap().login(&mut sender, &name))?;
     ///     await!(sender.send_global_command("join bot dev"))?;
     ///     loop {
