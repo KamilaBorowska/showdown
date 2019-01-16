@@ -2,6 +2,9 @@
 name = "showdown"
 version = "0.1.0"
 authors = ["Konrad Borowski <konrad@borowski.pw>"]
+description = "Pokemon Showdown Client"
+license = "MIT/Apache-2.0"
+repository = "https://gitlab.com/KonradBorowski/showdown"
 edition = "2018"
 
 [dependencies]
