@@ -60,6 +60,7 @@ pub enum Kind<'a> {
     Chat(Chat<'a>),
     Challenge(Challenge<'a>),
     Html(&'a str),
+    NoInit(NoInit<'a>),
     RoomInit(RoomInit<'a>),
     QueryResponse(QueryResponse<'a>),
     UpdateUser(UpdateUser<'a>),
@@ -73,6 +74,7 @@ impl Kind<'_> {
             "challstr" => Kind::Challenge(Challenge(arguments)),
             "html" => Kind::Html(arguments),
             "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
+            "noinit" => Kind::NoInit(NoInit::parse(arguments)?),
             "queryresponse" => Kind::QueryResponse(QueryResponse::parse(arguments)?),
             "updateuser" => Kind::UpdateUser(UpdateUser::parse(arguments)?),
             _ => return None,
@@ -107,6 +109,58 @@ impl<'a> Chat<'a> {
 pub struct Challenge<'a>(&'a str);
 
 impl<'a> Challenge<'a> {
+    /// Logs in an user.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![recursion_limit = "128"]
+    ///
+    /// use futures03::prelude::{FutureExt, *};
+    /// use pokemon_showdown_client::message::{Kind, NoInit, NoInitKind};
+    /// use pokemon_showdown_client::{connect, Result, RoomId};
+    /// use rand::prelude::*;
+    /// use tokio::await;
+    /// use tokio::prelude::*;
+    /// use tokio::runtime::Runtime;
+    ///
+    /// async fn start() -> Result<()> {
+    ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
+    ///     await!(sender.send_global_command("join bot dev"))?;
+    ///     let mut challenge_owned;
+    ///     let mut challenge = None;
+    ///     // It's not possible to join a hidden room without being logged in.
+    ///     loop {
+    ///         let received = await!(receiver.receive())?;
+    ///         match received.parse().kind {
+    ///             Kind::Challenge(ch) => {
+    ///                 challenge_owned = received;
+    ///                 match challenge_owned.parse().kind {
+    ///                     Kind::Challenge(ch) => challenge = Some(ch),
+    ///                     _ => unreachable!(),
+    ///                 }
+    ///             }
+    ///             Kind::NoInit(NoInit { kind: NoInitKind::NameRequired, .. }) => break,
+    ///             _ => {}
+    ///         }
+    ///     }
+    ///     let chars: Vec<_> = (b'a'..b'z').chain(b'0'..b'9').map(char::from).collect();
+    ///     let name: String = (0..16).map(|_| chars.choose(&mut thread_rng()).unwrap()).collect();
+    ///     await!(challenge.unwrap().login(&mut sender, &name))?;
+    ///     await!(sender.send_global_command("join bot dev"))?;
+    ///     loop {
+    ///         if let Kind::RoomInit(_) = await!(receiver.receive())?.parse().kind {
+    ///             return Ok(());
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// Runtime::new()
+    ///     .unwrap()
+    ///     .block_on_all(start().boxed().compat())
+    ///     .unwrap();
+    /// ```
     pub fn login(
         self,
         sender: &'a mut Sender,
@@ -238,6 +292,40 @@ impl RoomInit<'_> {
             room_type,
             title: title?,
             users: users?,
+        })
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct NoInit<'a> {
+    pub kind: NoInitKind,
+    pub reason: &'a str,
+}
+
+impl<'a> NoInit<'a> {
+    fn parse(arguments: &'a str) -> Option<Self> {
+        let (kind, reason) = split2(arguments);
+        Some(Self {
+            kind: NoInitKind::parse(kind)?,
+            reason,
+        })
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum NoInitKind {
+    Nonexistent,
+    JoinFailed,
+    NameRequired,
+}
+
+impl NoInitKind {
+    fn parse(argument: &str) -> Option<Self> {
+        Some(match argument {
+            "nonexistent" => NoInitKind::Nonexistent,
+            "joinfailed" => NoInitKind::JoinFailed,
+            "namerequired" => NoInitKind::NameRequired,
+            _ => return None,
         })
     }
 }

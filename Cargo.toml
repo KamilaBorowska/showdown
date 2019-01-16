@@ -17,3 +17,4 @@ websocket = {version = "0.22.1", default-features = false, features = ["async", 
 
 [dev-dependencies]
 comparator = "0.1.1"
+rand = "0.6.4"
