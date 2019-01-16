@@ -276,12 +276,12 @@ pub struct RoomsList<'a> {
     pub battle_count: u32,
 }
 
-impl RoomsList<'_> {
-    fn parse(arguments: &str) -> Option<RoomsList<'_>> {
+impl<'a> RoomsList<'a> {
+    fn parse(arguments: &'a str) -> Option<Self> {
         serde_json::from_str(arguments).ok()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Room<'_>> {
+    pub fn iter(&self) -> impl Iterator<Item = &Room<'a>> {
         self.official.iter().chain(&self.pspl).chain(&self.chat)
     }
 }
