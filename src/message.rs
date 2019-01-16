@@ -13,6 +13,10 @@ pub struct Message {
     pub(super) text: String,
 }
 
+/// Owned message type
+///
+/// To do something useful, it's usually necessary to call its [`Message::parse`]
+/// method.
 impl Message {
     /// Parses an owned message
     ///
@@ -52,9 +56,12 @@ fn split2(arg: &str) -> (&str, &str) {
     }
 }
 
+/// Parsed message.
 #[derive(Debug)]
 pub struct ParsedMessage<'a> {
+    /// Room where a message was said.
     pub room_id: RoomId<'a>,
+    /// Message kind.
     pub kind: Kind<'a>,
 }
 
