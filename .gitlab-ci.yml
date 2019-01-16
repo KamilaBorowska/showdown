@@ -1,0 +1,17 @@
+test:nightly:
+  script: *test_script
+  image: rustlang/rust:nightly
+
+clippy:
+  script:
+  - *print_version
+  - rustup component add clippy-preview
+  - cargo clippy --verbose
+  image: rustlang/rust:nightly
+
+rustfmt:
+  script:
+  - *print_version
+  - rustup component add rustfmt-preview
+  - cargo fmt -- --check
+  image: rustlang/rust:nightly
