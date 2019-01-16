@@ -19,3 +19,23 @@ rustfmt:
   - rustup component add rustfmt-preview
   - cargo fmt -- --check
   image: rustlang/rust:nightly
+
+pages:
+  stage: deploy
+  script:
+  - *print_version
+  - cargo doc --all-features
+  - mv target/doc public
+  - |
+    echo "
+      <!DOCTYPE html>
+      <title>Redirection page</title>
+      <meta http-equiv=refresh content='0; url=pokemon_showdown_client/'>
+      <p> Please check out <a href='pokemon_showdown_client/'>pokemon_showdown_client</a> documentation.
+    " > public/index.html
+  artifacts:
+    paths:
+    - public
+  image: rustlang/rust:nightly
+  only:
+  - master
