@@ -128,28 +128,26 @@ impl<'a> Challenge<'a> {
     /// async fn start() -> Result<()> {
     ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
     ///     await!(sender.send_global_command("join bot dev"))?;
-    ///     let mut challenge_owned;
-    ///     let mut challenge = None;
+    ///     let mut received;
+    ///     // Get the challenge first
+    ///     let challenge = loop {
+    ///         received = await!(receiver.receive())?;
+    ///         if let Kind::Challenge(ch) = received.parse().kind {
+    ///             break ch;
+    ///         }
+    ///     };
     ///     // It's not possible to join a hidden room without being logged in.
     ///     loop {
-    ///         let received = await!(receiver.receive())?;
-    ///         match received.parse().kind {
-    ///             Kind::Challenge(ch) => {
-    ///                 challenge_owned = received;
-    ///                 match challenge_owned.parse().kind {
-    ///                     Kind::Challenge(ch) => challenge = Some(ch),
-    ///                     _ => unreachable!(),
-    ///                 }
-    ///             }
-    ///             Kind::NoInit(NoInit {
-    ///                 kind: NoInitKind::NameRequired,
-    ///                 ..
-    ///             }) => break,
-    ///             _ => {}
+    ///         if let Kind::NoInit(NoInit {
+    ///             kind: NoInitKind::NameRequired,
+    ///             ..
+    ///         }) = await!(receiver.receive())?.parse().kind
+    ///         {
+    ///             break;
     ///         }
     ///     }
     ///     let name = random_username();
-    ///     await!(challenge.unwrap().login(&mut sender, &name))?;
+    ///     await!(challenge.login(&mut sender, &name))?;
     ///     await!(sender.send_global_command("join bot dev"))?;
     ///     loop {
     ///         if let Kind::RoomInit(_) = await!(receiver.receive())?.parse().kind {
