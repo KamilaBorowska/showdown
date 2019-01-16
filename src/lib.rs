@@ -142,7 +142,7 @@ impl Sender {
     }
 
     /// Sends a message in a chat room.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
