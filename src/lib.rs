@@ -193,9 +193,9 @@ impl Sender {
 /// [`Receiver`] can be used to retrieve messages from Showdown. Due to borrow checker,
 /// those structures are separate - it's practically necessary to implement anything
 /// interesting.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// #![feature(async_await, await_macro, futures_api)]
 /// #![recursion_limit = "128"]
