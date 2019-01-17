@@ -36,11 +36,10 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 /// #![feature(async_await, await_macro, futures_api)]
 /// #![recursion_limit = "128"]
 ///
-/// use futures03::prelude::{FutureExt, *};
+/// use futures03::prelude::*;
 /// use showdown::message::{Kind, ParsedMessage, UpdateUser};
 /// use showdown::{connect, Result, RoomId};
 /// use tokio::await;
-/// use tokio::prelude::*;
 /// use tokio::runtime::Runtime;
 ///
 /// async fn start() -> Result<()> {
@@ -112,11 +111,10 @@ impl Sender {
     /// #![feature(async_await, await_macro, futures_api)]
     /// #![recursion_limit = "128"]
     ///
-    /// use futures03::prelude::{FutureExt, *};
+    /// use futures03::prelude::*;
     /// use showdown::message::{Kind, ParsedMessage, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
     /// use tokio::await;
-    /// use tokio::prelude::*;
     /// use tokio::runtime::Runtime;
     ///
     /// async fn start() -> Result<()> {
@@ -154,11 +152,10 @@ impl Sender {
     /// #![feature(async_await, await_macro, futures_api)]
     /// #![recursion_limit = "128"]
     ///
-    /// use futures03::prelude::{FutureExt, *};
+    /// use futures03::prelude::*;
     /// use showdown::message::{Kind, ParsedMessage, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
     /// use tokio::await;
-    /// use tokio::prelude::*;
     /// use tokio::runtime::Runtime;
     ///
     /// async fn start() -> Result<()> {
@@ -207,10 +204,9 @@ impl Sender {
 /// #![feature(async_await, await_macro, futures_api)]
 /// #![recursion_limit = "128"]
 ///
-/// use futures03::prelude::{FutureExt, *};
+/// use futures03::prelude::*;
 /// use showdown::{connect, Result};
 /// use tokio::await;
-/// use tokio::prelude::*;
 /// use tokio::runtime::Runtime;
 ///
 /// async fn start() {
@@ -237,10 +233,9 @@ pub fn connect(name: &str) -> impl Future<Item = (Sender, Receiver), Error = Err
 /// #![feature(async_await, await_macro, futures_api)]
 /// #![recursion_limit = "128"]
 ///
-/// use futures03::prelude::{FutureExt, *};
+/// use futures03::prelude::*;
 /// use showdown::{connect_to_url, fetch_server_url, Result};
 /// use tokio::await;
-/// use tokio::prelude::*;
 /// use tokio::runtime::Runtime;
 ///
 /// async fn start() -> Result<()> {
