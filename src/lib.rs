@@ -284,15 +284,16 @@ pub fn fetch_server_url(name: &str) -> impl Future<Item = Url, Error = Error> {
 
 impl Receiver {
     pub fn receive(&mut self) -> impl Future<Item = Message, Error = Error> + '_ {
-        async move {
-            let message = Error::from_ws(await!((&mut self.stream).next()).transpose())?;
-            if let Some(OwnedMessage::Text(text)) = message {
-                Ok(Message { text })
-            } else {
-                Err(Error(ErrorInner::UnrecognizedMessage(message)))
-            }
-        }
-            .boxed()
+        (&mut self.stream)
+            .next()
+            .map(|r| {
+                let message = Error::from_ws(r.transpose())?;
+                if let Some(OwnedMessage::Text(text)) = message {
+                    Ok(Message { text })
+                } else {
+                    Err(Error(ErrorInner::UnrecognizedMessage(message)))
+                }
+            })
             .compat()
     }
 }
