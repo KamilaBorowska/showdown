@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 use tokio::prelude::stream::{SplitSink, SplitStream};
 use tokio::prelude::*;
 use tokio::timer::{self, Delay};
-use websocket::r#async::TcpStream;
+use websocket::r#async;
 pub use websocket::url;
 use websocket::url::Url;
 use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
@@ -72,7 +72,7 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 ///     .unwrap();
 /// ```
 pub struct Receiver {
-    stream: SplitStream<websocket::r#async::Client<TcpStream>>,
+    stream: SplitStream<r#async::Client<Box<dyn r#async::Stream + Send>>>,
 }
 
 impl fmt::Debug for Receiver {
@@ -88,7 +88,7 @@ pub struct Sender {
 }
 
 impl Sender {
-    fn new(sink: SplitSink<websocket::r#async::Client<TcpStream>>) -> Sender {
+    fn new(sink: SplitSink<r#async::Client<Box<dyn r#async::Stream + Send>>>) -> Sender {
         let (sender, receiver) = mpsc::unbounded();
         tokio::spawn(
             receiver
@@ -259,12 +259,10 @@ pub fn connect(name: &str) -> impl Future<Item = (Sender, Receiver), Error = Err
 ///     .unwrap();
 /// ```
 pub fn connect_to_url(url: &Url) -> impl Future<Item = (Sender, Receiver), Error = Error> {
-    ClientBuilder::from_url(url)
-        .async_connect_insecure()
-        .then(|r| {
-            let (sink, stream) = Error::from_ws(r)?.0.split();
-            Ok((Sender::new(sink), Receiver { stream }))
-        })
+    ClientBuilder::from_url(url).async_connect(None).then(|r| {
+        let (sink, stream) = Error::from_ws(r)?.0.split();
+        Ok((Sender::new(sink), Receiver { stream }))
+    })
 }
 
 pub fn fetch_server_url(name: &str) -> impl Future<Item = Url, Error = Error> {
