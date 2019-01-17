@@ -8,14 +8,11 @@
 //! depreciation period for removed features. Don't use this crate if you
 //! aren't prepared for constant breakage.
 
-#![feature(async_await, await_macro, futures_api)]
-
 pub mod message;
 
 use self::message::Message;
 pub use chrono;
 use futures::sync::mpsc;
-use futures03::{FutureExt, TryFutureExt};
 use reqwest::r#async::Client;
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
@@ -288,16 +285,15 @@ pub fn fetch_server_url(name: &str) -> impl Future<Item = Url, Error = Error> {
 impl Receiver {
     pub fn receive(&mut self) -> impl Future<Item = Message, Error = Error> + '_ {
         (&mut self.stream)
-            .next()
-            .map(|r| {
-                let message = Error::from_ws(r.transpose())?;
+            .into_future()
+            .then(|e| Error::from_ws(e.map_err(|e| e.0)))
+            .and_then(|(message, _)| {
                 if let Some(OwnedMessage::Text(text)) = message {
                     Ok(Message { text })
                 } else {
                     Err(Error(ErrorInner::UnrecognizedMessage(message)))
                 }
             })
-            .compat()
     }
 }
 

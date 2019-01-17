@@ -10,14 +10,15 @@ edition = "2018"
 [dependencies]
 chrono = "0.4.6"
 futures = "0.1.25"
-futures03 = {package = "futures-preview", version = "=0.3.0-alpha.12", features = ["compat"]}
 reqwest = "0.9.8"
 serde = "1.0.84"
 serde_derive = "1.0.84"
 serde_json = "1.0.35"
-tokio = {version = "0.1.14", features = ["async-await-preview"]}
+tokio = "0.1.14"
 websocket = {version = "0.22.1", default-features = false, features = ["async", "async-ssl"]}
 
 [dev-dependencies]
 comparator = "0.1.1"
+futures03 = {package = "futures-preview", version = "=0.3.0-alpha.12", features = ["compat"]}
 rand = "0.6.4"
+tokio = {version = "0.1.14", features = ["async-await-preview"]}
