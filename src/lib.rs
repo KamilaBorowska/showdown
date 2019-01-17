@@ -225,6 +225,34 @@ pub fn connect(name: &str) -> impl Future<Item = (Sender, Receiver), Error = Err
     fetch_server_url(name).and_then(|url| connect_to_url(&url))
 }
 
+/// Connects to an URL.
+///
+/// This URL is provided by [`fetch_server_url`] function.
+///
+/// # Examples
+///
+/// ```rust
+/// #![feature(async_await, await_macro, futures_api)]
+/// #![recursion_limit = "128"]
+///
+/// use futures03::prelude::{FutureExt, *};
+/// use showdown::{connect_to_url, fetch_server_url, Result};
+/// use tokio::await;
+/// use tokio::prelude::*;
+/// use tokio::runtime::Runtime;
+///
+/// async fn start() -> Result<()> {
+///     let url = await!(fetch_server_url("showdown"))?;
+///     assert_eq!(url.as_str(), "ws://sim2.psim.us:8000/showdown/websocket");
+///     await!(connect_to_url(&url))?;
+///     Ok(())
+/// }
+///
+/// Runtime::new()
+///     .unwrap()
+///     .block_on_all(start().boxed().compat())
+///     .unwrap();
+/// ```
 pub fn connect_to_url(url: &Url) -> impl Future<Item = (Sender, Receiver), Error = Error> {
     ClientBuilder::from_url(url)
         .async_connect_insecure()
