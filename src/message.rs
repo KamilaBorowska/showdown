@@ -1,5 +1,6 @@
 use crate::{Error, ErrorInner, RoomId, Sender};
 use chrono::NaiveDateTime;
+use futures::future::Either;
 use futures03::{FutureExt, TryFutureExt};
 use reqwest::r#async::Client;
 use serde_derive::Deserialize;
@@ -185,30 +186,37 @@ impl<'a> Challenge<'a> {
         login: &'a str,
     ) -> impl Future<Item = Option<PasswordRequired<'a>>, Error = Error> + 'a {
         let client = Client::new();
-        async move {
-            let request = client
-                .post("http://play.pokemonshowdown.com/action.php")
-                .form(&[
-                    ("act", "getassertion"),
-                    ("userid", login),
-                    ("challstr", self.0),
-                ]);
-            let response =
-                Error::from_reqwest(await!(request.send().and_then(|r| r.into_body().concat2())))?;
-            let response = str::from_utf8(&response).map_err(|e| Error(ErrorInner::Utf8(e)))?;
-            if response == ";" {
-                return Ok(Some(PasswordRequired {
-                    challstr: self,
-                    login,
-                    sender,
-                    client,
-                }));
-            }
-            await!(sender.send_global_command(&format!("trn {},0,{}", login, response)))?;
-            Ok(None)
-        }
-            .boxed()
-            .compat()
+        let request = client
+            .post("http://play.pokemonshowdown.com/action.php")
+            .form(&[
+                ("act", "getassertion"),
+                ("userid", login),
+                ("challstr", self.0),
+            ]);
+        request
+            .send()
+            .and_then(|r| r.into_body().concat2())
+            .then(Error::from_reqwest)
+            .and_then(move |response| {
+                let response = match str::from_utf8(&response) {
+                    Err(e) => return Either::A(future::result(Err(Error(ErrorInner::Utf8(e))))),
+                    Ok(response) => response,
+                };
+                if response == ";" {
+                    Either::A(future::result(Ok(Some(PasswordRequired {
+                        challstr: self,
+                        login,
+                        sender,
+                        client,
+                    }))))
+                } else {
+                    Either::B(
+                        sender
+                            .send_global_command(&format!("trn {},0,{}", login, response))
+                            .map(|()| None),
+                    )
+                }
+            })
     }
 
     pub fn login_with_password(
