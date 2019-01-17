@@ -235,24 +235,23 @@ impl<'a> Challenge<'a> {
         password: &str,
         client: &Client,
     ) -> impl Future<Item = (), Error = Error> + 'a {
-        let request = client
+        client
             .post("http://play.pokemonshowdown.com/action.php")
             .form(&[
                 ("act", "login"),
                 ("name", login),
                 ("pass", password),
                 ("challstr", self.0),
-            ]);
-        async move {
-            let response =
-                Error::from_reqwest(await!(request.send().and_then(|r| r.into_body().concat2())))?;
-            let LoginServerResponse { assertion } =
-                serde_json::from_slice(&response[1..]).map_err(|e| Error(ErrorInner::Json(e)))?;
-            await!(sender.send_global_command(&format!("trn {},0,{}", login, assertion)))?;
-            Ok(())
-        }
-            .boxed()
-            .compat()
+            ])
+            .send()
+            .and_then(|r| r.into_body().concat2())
+            .then(Error::from_reqwest)
+            .and_then(move |response| {
+                let LoginServerResponse { assertion } = serde_json::from_slice(&response[1..])
+                    .map_err(|e| Error(ErrorInner::Json(e)))?;
+                Ok(sender.send_global_command(&format!("trn {},0,{}", login, assertion)))
+            })
+            .and_then(|send| send)
     }
 }
 
