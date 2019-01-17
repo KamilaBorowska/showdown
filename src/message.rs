@@ -1,12 +1,10 @@
 use crate::{Error, ErrorInner, RoomId, Sender};
 use chrono::NaiveDateTime;
 use futures::future::Either;
-use futures03::{FutureExt, TryFutureExt};
 use reqwest::r#async::Client;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
 use std::str;
-use tokio::await;
 use tokio::prelude::*;
 
 #[derive(Debug)]
