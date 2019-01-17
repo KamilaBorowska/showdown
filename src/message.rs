@@ -127,12 +127,11 @@ impl<'a> Challenge<'a> {
     /// #![feature(async_await, await_macro, futures_api)]
     /// #![recursion_limit = "128"]
     ///
-    /// use futures03::prelude::{FutureExt, *};
+    /// use futures03::prelude::*;
     /// use rand::prelude::*;
     /// use showdown::message::{Kind, NoInit, NoInitKind};
     /// use showdown::{connect, Result, RoomId};
     /// use tokio::await;
-    /// use tokio::prelude::*;
     /// use tokio::runtime::Runtime;
     ///
     /// async fn start() -> Result<()> {
