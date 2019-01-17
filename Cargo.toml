@@ -1,6 +1,6 @@
 [package]
 name = "showdown"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Konrad Borowski <konrad@borowski.pw>"]
 description = "Pokemon Showdown Client"
 license = "MIT/Apache-2.0"
