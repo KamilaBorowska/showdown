@@ -18,7 +18,7 @@ tokio = "0.1.14"
 websocket = {version = "0.22.1", default-features = false, features = ["async", "async-ssl"]}
 
 [dev-dependencies]
-comparator = "0.1.1"
+comparator = "0.2.0"
 futures03 = {package = "futures-preview", version = "=0.3.0-alpha.12", features = ["compat"]}
 rand = "0.6.4"
 tokio = {version = "0.1.14", features = ["async-await-preview"]}
