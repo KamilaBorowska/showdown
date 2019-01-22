@@ -232,7 +232,10 @@ impl<'a> Challenge<'a> {
         password: &str,
         client: &Client,
     ) -> impl Future<Item = (), Error = Error> + 'a {
-        client
+        if password.is_empty() {
+            return Either::A(self.login(sender, login).map(|_| ()));
+        }
+        let future = client
             .post("http://play.pokemonshowdown.com/action.php")
             .form(&[
                 ("act", "login"),
@@ -248,7 +251,8 @@ impl<'a> Challenge<'a> {
                     .map_err(|e| Error(ErrorInner::Json(e)))?;
                 Ok(sender.send_global_command(&format!("trn {},0,{}", login, assertion)))
             })
-            .and_then(|send| send)
+            .and_then(|send| send);
+        Either::B(future)
     }
 }
 
