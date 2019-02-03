@@ -79,7 +79,7 @@ pub enum Kind<'a> {
 impl Kind<'_> {
     fn parse<'a>(command: &str, arguments: &'a str) -> Option<Kind<'a>> {
         Some(match command {
-            "c:" => Kind::Chat(Chat::parse(arguments)?),
+            "c:" => Kind::Chat(Chat::parse(arguments)),
             "challstr" => Kind::Challenge(Challenge(arguments)),
             "html" => Kind::Html(arguments),
             "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
@@ -93,24 +93,37 @@ impl Kind<'_> {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Chat<'a> {
-    pub timestamp: NaiveDateTime,
-    pub user: &'a str,
-    pub message: &'a str,
+    timestamp: &'a str,
+    user: &'a str,
+    message: &'a str,
 }
 
 impl<'a> Chat<'a> {
-    fn parse(arguments: &'a str) -> Option<Self> {
+    fn parse(arguments: &'a str) -> Self {
         let (timestamp, arguments) = split2(arguments);
-        let timestamp = NaiveDateTime::from_timestamp(timestamp.parse().ok()?, 0);
-        let (user, mut message) = split2(arguments);
-        if message.ends_with('\n') {
-            message = &message[..message.len() - 1];
-        }
-        Some(Self {
+        let (user, message) = split2(arguments);
+        Self {
             timestamp,
             user,
             message,
-        })
+        }
+    }
+
+    pub fn timestamp(&self) -> NaiveDateTime {
+        NaiveDateTime::from_timestamp(self.timestamp.parse().unwrap(), 0)
+    }
+
+    pub fn user(&self) -> &str {
+        self.user
+    }
+
+    pub fn message(&self) -> &str {
+        let message = self.message;
+        if message.ends_with('\n') {
+            &message[..message.len() - 1]
+        } else {
+            message
+        }
     }
 }
 

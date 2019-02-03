@@ -1,7 +1,7 @@
 #![feature(async_await, await_macro, futures_api)]
 #![recursion_limit = "128"]
 
-use showdown::message::{Chat, Kind, UpdateUser};
+use showdown::message::{Kind, UpdateUser};
 use showdown::{connect, Result};
 use std::env;
 use tokio::await;
@@ -16,12 +16,8 @@ async fn start(login: String, password: String) -> Result<()> {
             Kind::UpdateUser(UpdateUser { named: true, .. }) => {
                 await!(sender.send_global_command("join bot dev"))?;
             }
-            Kind::Chat(Chat {
-                user,
-                message: ".yay",
-                ..
-            }) => {
-                let response = format!("YAY {}!", user.to_uppercase());
+            Kind::Chat(chat) if chat.message() == ".yay" => {
+                let response = format!("YAY {}!", chat.user().to_uppercase());
                 await!(sender.send_chat_message(parsed.room_id, &response))?
             }
             _ => {}
