@@ -80,12 +80,12 @@ impl fmt::Debug for Receiver {
 /// Message sender.
 #[derive(Clone, Debug)]
 pub struct Sender {
-    sender: mpsc::UnboundedSender<OwnedMessage>,
+    sender: mpsc::Sender<OwnedMessage>,
 }
 
 impl Sender {
     fn new(sink: SplitSink<r#async::Client<Box<dyn r#async::Stream + Send>>>) -> Sender {
-        let (sender, receiver) = mpsc::unbounded();
+        let (sender, receiver) = mpsc::channel(0);
         tokio::spawn(
             receiver
                 .fold(sink, |sink, m| {
