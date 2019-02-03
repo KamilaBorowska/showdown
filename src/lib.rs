@@ -78,7 +78,7 @@ impl fmt::Debug for Receiver {
 }
 
 /// Message sender.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Sender {
     sender: mpsc::UnboundedSender<OwnedMessage>,
 }
