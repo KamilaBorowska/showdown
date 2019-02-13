@@ -20,10 +20,9 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::result::Result as StdResult;
 use std::str::Utf8Error;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::prelude::stream::{SplitSink, SplitStream};
 use tokio::prelude::*;
-use tokio::timer::{self, Delay};
 use websocket::r#async;
 pub use websocket::url;
 use websocket::url::Url;
@@ -89,16 +88,9 @@ impl Sender {
         let (sender, receiver) = mpsc::channel(0);
         tokio::spawn(
             receiver
-                .fold(sink, |sink, m| {
-                    sink.send(m)
-                        .then(Error::from_ws)
-                        .and_then(|sink| {
-                            Delay::new(Instant::now() + Duration::from_millis(600))
-                                .map(|_| sink)
-                                .map_err(|e| Error(ErrorInner::Timer(e)))
-                        })
-                        .then(|r| Ok(r.unwrap()))
-                })
+                .throttle(Duration::from_millis(600))
+                .map_err(|e| panic!(e))
+                .forward(sink.sink_map_err(|e| panic!(e)))
                 .map(|_| ()),
         );
         Self { sender }
@@ -330,7 +322,6 @@ enum ErrorInner {
     Mpsc(mpsc::SendError<OwnedMessage>),
     Utf8(Utf8Error),
     Json(serde_json::Error),
-    Timer(timer::Error),
     UnrecognizedMessage(Option<OwnedMessage>),
 }
 
@@ -343,7 +334,6 @@ impl Display for Error {
             ErrorInner::Mpsc(e) => e.fmt(f),
             ErrorInner::Utf8(e) => e.fmt(f),
             ErrorInner::Json(e) => e.fmt(f),
-            ErrorInner::Timer(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
         }
     }
@@ -358,7 +348,6 @@ impl StdError for Error {
             ErrorInner::Mpsc(e) => Some(e),
             ErrorInner::Utf8(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
-            ErrorInner::Timer(e) => Some(e),
             ErrorInner::UnrecognizedMessage(_) => None,
         }
     }
