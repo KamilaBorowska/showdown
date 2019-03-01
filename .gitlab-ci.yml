@@ -1,27 +1,29 @@
+before_script:
+- apt-get update -y
+- apt-get install build-essential curl libssl-dev pkg-config -y
+- curl https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2019-02-26
+- PATH=~/.cargo/bin:$PATH
+- rustc --version && cargo --version
+
+image: ubuntu:latest
+
 test:nightly:
   script:
-  - &print_version rustc --version && cargo --version
   - cargo test --verbose
-  image: rustlang/rust:nightly
 
 clippy:
   script:
-  - *print_version
   - rustup component add clippy-preview
   - cargo clippy --verbose
-  image: rustlang/rust:nightly
 
 rustfmt:
   script:
-  - *print_version
   - rustup component add rustfmt-preview
   - cargo fmt -- --check
-  image: rustlang/rust:nightly
 
 pages:
   stage: deploy
   script:
-  - *print_version
   - cargo doc --all-features
   - mv target/doc public
   - |
@@ -34,6 +36,5 @@ pages:
   artifacts:
     paths:
     - public
-  image: rustlang/rust:nightly
   only:
   - master
