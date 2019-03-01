@@ -11,6 +11,7 @@ use std::borrow::Cow;
 use std::str;
 use tokio::prelude::*;
 
+#[derive(Debug)]
 pub struct Message {
     rental: RentalMessage,
 }
