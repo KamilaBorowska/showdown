@@ -11,12 +11,12 @@ use std::borrow::Cow;
 use std::str;
 use tokio::prelude::*;
 
+/// Owned message type
 #[derive(Debug)]
 pub struct Message {
     rental: RentalMessage,
 }
 
-/// Owned message type
 impl Message {
     pub(crate) fn new(message: String) -> Self {
         Self {
