@@ -1,3 +1,7 @@
+mod parsed_message;
+
+use self::parsed_message::ParsedMessage;
+use self::rental_internal::RentalMessage;
 use crate::{Error, ErrorInner, RoomId, Sender};
 use chrono::NaiveDateTime;
 use futures::future::Either;
@@ -7,43 +11,33 @@ use std::borrow::Cow;
 use std::str;
 use tokio::prelude::*;
 
-#[derive(Debug)]
 pub struct Message {
-    pub(super) text: String,
+    rental: RentalMessage,
 }
 
 /// Owned message type
-///
-/// To do something useful, it's usually necessary to call its
-/// [`Message::parse`] method.
 impl Message {
-    /// Parses an owned message
-    ///
-    /// This function needs to exist due to self-borrow involved.
-    pub fn parse(&self) -> ParsedMessage<'_> {
-        let full_message: &str = &self.text;
-        let (room, message) = if full_message.starts_with('>') {
-            let without_prefix = &full_message[1..];
-            let index = without_prefix
-                .find('\n')
-                .unwrap_or_else(|| without_prefix.len());
-            (
-                &without_prefix[..index],
-                without_prefix.get(index + 1..).unwrap_or(""),
-            )
-        } else {
-            ("", full_message)
-        };
-        let kind = if message.starts_with('|') {
-            let (command, arg) = split2(&message[1..]);
-            Kind::parse(command, arg)
-                .unwrap_or_else(|| Kind::Unrecognized(UnrecognizedMessage(full_message)))
-        } else {
-            Kind::Unrecognized(UnrecognizedMessage(full_message))
-        };
-        ParsedMessage {
-            room_id: RoomId(room),
-            kind,
+    pub(crate) fn new(message: String) -> Self {
+        Self {
+            rental: RentalMessage::new(message, |message| ParsedMessage::parse_message(message)),
+        }
+    }
+
+    pub fn room_id(&self) -> RoomId<'_> {
+        self.rental.suffix().room_id
+    }
+
+    pub fn kind(&self) -> &Kind<'_> {
+        &self.rental.suffix().kind
+    }
+}
+
+rental! {
+    mod rental_internal {
+        #[rental(covariant, debug)]
+        pub struct RentalMessage {
+            message: String,
+            parsed: super::ParsedMessage<'message>,
         }
     }
 }
@@ -53,15 +47,6 @@ fn split2(arg: &str) -> (&str, &str) {
         Some(index) => (&arg[..index], &arg[index + 1..]),
         None => (arg, ""),
     }
-}
-
-/// Parsed message.
-#[derive(Debug)]
-pub struct ParsedMessage<'a> {
-    /// Room where a message was said.
-    pub room_id: RoomId<'a>,
-    /// Message kind.
-    pub kind: Kind<'a>,
 }
 
 #[derive(Debug)]
@@ -154,7 +139,7 @@ impl<'a> Challenge<'a> {
     ///     // Get the challenge first
     ///     let challenge = loop {
     ///         received = await!(receiver.receive())?;
-    ///         if let Kind::Challenge(ch) = received.parse().kind {
+    ///         if let Kind::Challenge(ch) = received.kind() {
     ///             break ch;
     ///         }
     ///     };
@@ -163,7 +148,7 @@ impl<'a> Challenge<'a> {
     ///         if let Kind::NoInit(NoInit {
     ///             kind: NoInitKind::NameRequired,
     ///             ..
-    ///         }) = await!(receiver.receive())?.parse().kind
+    ///         }) = await!(receiver.receive())?.kind()
     ///         {
     ///             break;
     ///         }
@@ -172,7 +157,7 @@ impl<'a> Challenge<'a> {
     ///     await!(challenge.login(&mut sender, &name))?;
     ///     await!(sender.send_global_command("join bot dev"))?;
     ///     loop {
-    ///         if let Kind::RoomInit(_) = await!(receiver.receive())?.parse().kind {
+    ///         if let Kind::RoomInit(_) = await!(receiver.receive())?.kind() {
     ///             return Ok(());
     ///         }
     ///     }

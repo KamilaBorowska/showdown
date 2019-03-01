@@ -11,8 +11,8 @@ async fn start() -> Result<()> {
     let (mut sender, mut receiver) = await!(connect("showdown"))?;
     await!(sender.send_global_command("cmd rooms"))?;
     loop {
-        let received = await!(receiver.receive())?;
-        if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.parse().kind {
+        if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = await!(receiver.receive())?.kind()
+        {
             println!("Top 5 most popular rooms");
             let mut rooms_heap = BinaryHeap::with_comparator(
                 comparing(|r: &&Room<'_>| r.user_count)
