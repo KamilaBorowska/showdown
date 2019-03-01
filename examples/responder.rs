@@ -10,15 +10,14 @@ async fn start(login: String, password: String) -> Result<()> {
     let (mut sender, mut receiver) = await!(connect("showdown"))?;
     loop {
         let message = await!(receiver.receive())?;
-        let parsed = message.parse();
-        match parsed.kind {
+        match message.kind() {
             Kind::Challenge(ch) => await!(ch.login_with_password(&mut sender, &login, &password))?,
             Kind::UpdateUser(UpdateUser { named: true, .. }) => {
                 await!(sender.send_global_command("join bot dev"))?;
             }
             Kind::Chat(chat) if chat.message() == ".yay" => {
                 let response = format!("YAY {}!", chat.user().to_uppercase());
-                await!(sender.send_chat_message(parsed.room_id, &response))?
+                await!(sender.send_chat_message(message.room_id(), &response))?
             }
             _ => {}
         }

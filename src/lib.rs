@@ -9,6 +9,9 @@
 //! removed features. Don't use this crate if you aren't prepared for constant
 //! breakage.
 
+#[macro_use]
+extern crate rental;
+
 pub mod message;
 
 use self::message::Message;
@@ -37,7 +40,7 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 /// #![recursion_limit = "128"]
 ///
 /// use futures03::prelude::*;
-/// use showdown::message::{Kind, ParsedMessage, UpdateUser};
+/// use showdown::message::{Kind, UpdateUser};
 /// use showdown::{connect, Result, RoomId};
 /// use tokio::await;
 /// use tokio::runtime::Runtime;
@@ -45,16 +48,12 @@ use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
 /// async fn start() -> Result<()> {
 ///     let (_, mut receiver) = await!(connect("showdown"))?;
 ///     let message = await!(receiver.receive())?;
-///     match message.parse() {
-///         ParsedMessage {
-///             room_id: RoomId(""),
-///             kind:
-///                 Kind::UpdateUser(UpdateUser {
-///                     username,
-///                     named: false,
-///                     ..
-///                 }),
-///         } => {
+///     match message.kind() {
+///         Kind::UpdateUser(UpdateUser {
+///             username,
+///             named: false,
+///             ..
+///         }) if message.room_id() == RoomId("") => {
 ///             assert!(username.starts_with("Guest "));
 ///         }
 ///         _ => panic!(),
@@ -105,7 +104,7 @@ impl Sender {
     /// #![recursion_limit = "128"]
     ///
     /// use futures03::prelude::*;
-    /// use showdown::message::{Kind, ParsedMessage, QueryResponse};
+    /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
     /// use tokio::await;
     /// use tokio::runtime::Runtime;
@@ -115,7 +114,7 @@ impl Sender {
     ///     await!(sender.send_global_command("cmd rooms"))?;
     ///     loop {
     ///         let received = await!(receiver.receive())?;
-    ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.parse().kind {
+    ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.kind() {
     ///             assert!(rooms
     ///                 .official
     ///                 .iter()
@@ -146,7 +145,7 @@ impl Sender {
     /// #![recursion_limit = "128"]
     ///
     /// use futures03::prelude::*;
-    /// use showdown::message::{Kind, ParsedMessage, QueryResponse};
+    /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
     /// use tokio::await;
     /// use tokio::runtime::Runtime;
@@ -156,7 +155,7 @@ impl Sender {
     ///     await!(sender.send_global_command("join lobby"))?;
     ///     await!(sender.send_chat_message(RoomId::LOBBY, "/roomdesc"));
     ///     loop {
-    ///         if let Kind::Html(html) = await!(receiver.receive())?.parse().kind {
+    ///         if let Kind::Html(html) = await!(receiver.receive())?.kind() {
     ///             assert!(html.contains("Relax here amidst the chaos."));
     ///             return Ok(());
     ///         }
@@ -277,7 +276,7 @@ impl Receiver {
             .then(|e| Error::from_ws(e.map_err(|e| e.0)))
             .and_then(|(message, _)| {
                 if let Some(OwnedMessage::Text(text)) = message {
-                    Ok(Message { text })
+                    Ok(Message::new(text))
                 } else {
                     Err(Error(ErrorInner::UnrecognizedMessage(message)))
                 }
