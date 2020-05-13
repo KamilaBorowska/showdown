@@ -2,14 +2,13 @@ mod parsed_message;
 
 use self::parsed_message::ParsedMessage;
 use self::rental_internal::RentalMessage;
-use crate::{Error, ErrorInner, RoomId, Sender};
+use crate::{Error, ErrorInner, Result, RoomId, Sender};
 use chrono::NaiveDateTime;
-use futures::future::Either;
-use reqwest::r#async::Client;
+use futures::TryFutureExt;
+use reqwest::Client;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
 use std::str;
-use tokio::prelude::*;
 
 /// Owned message type
 #[derive(Debug)]
@@ -123,23 +122,19 @@ impl<'a> Challenge<'a> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// #![recursion_limit = "128"]
-    ///
-    /// use futures03::prelude::*;
+    /// use futures::prelude::*;
     /// use rand::prelude::*;
     /// use showdown::message::{Kind, NoInit, NoInitKind};
     /// use showdown::{connect, Result, RoomId};
-    /// use tokio::await;
     /// use tokio::runtime::Runtime;
     ///
     /// async fn start() -> Result<()> {
-    ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
-    ///     await!(sender.send_global_command("join bot dev"))?;
+    ///     let (mut sender, mut receiver) = connect("showdown").await?;
+    ///     sender.send_global_command("join bot dev").await?;
     ///     let mut received;
     ///     // Get the challenge first
     ///     let challenge = loop {
-    ///         received = await!(receiver.receive())?;
+    ///         received = receiver.receive().await?;
     ///         if let Kind::Challenge(ch) = received.kind() {
     ///             break ch;
     ///         }
@@ -149,16 +144,16 @@ impl<'a> Challenge<'a> {
     ///         if let Kind::NoInit(NoInit {
     ///             kind: NoInitKind::NameRequired,
     ///             ..
-    ///         }) = await!(receiver.receive())?.kind()
+    ///         }) = receiver.receive().await?.kind()
     ///         {
     ///             break;
     ///         }
     ///     }
     ///     let name = random_username();
-    ///     await!(challenge.login(&mut sender, &name))?;
-    ///     await!(sender.send_global_command("join bot dev"))?;
+    ///     challenge.login(&mut sender, &name).await?;
+    ///     sender.send_global_command("join bot dev").await?;
     ///     loop {
-    ///         if let Kind::RoomInit(_) = await!(receiver.receive())?.kind() {
+    ///         if let Kind::RoomInit(_) = receiver.receive().await?.kind() {
     ///             return Ok(());
     ///         }
     ///     }
@@ -171,70 +166,61 @@ impl<'a> Challenge<'a> {
     ///         .collect()
     /// }
     ///
-    /// Runtime::new()
-    ///     .unwrap()
-    ///     .block_on_all(start().boxed().compat())
-    ///     .unwrap();
+    /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
-    pub fn login(
+    pub async fn login(
         self,
         sender: &'a mut Sender,
         login: &'a str,
-    ) -> impl Future<Item = Option<PasswordRequired<'a>>, Error = Error> + 'a {
+    ) -> Result<Option<PasswordRequired<'a>>> {
         let client = Client::new();
-        let request = client
+        let response = client
             .post("http://play.pokemonshowdown.com/action.php")
             .form(&[
                 ("act", "getassertion"),
                 ("userid", login),
                 ("challstr", self.0),
-            ]);
-        request
+            ])
             .send()
-            .and_then(|r| r.into_body().concat2())
-            .then(Error::from_reqwest)
-            .and_then(move |response| {
-                let response = match str::from_utf8(&response) {
-                    Err(e) => return Either::A(future::result(Err(Error(ErrorInner::Utf8(e))))),
-                    Ok(response) => response,
-                };
-                if response == ";" {
-                    Either::A(future::result(Ok(Some(PasswordRequired {
-                        challstr: self,
-                        login,
-                        sender,
-                        client,
-                    }))))
-                } else {
-                    Either::B(
-                        sender
-                            .send_global_command(&format!("trn {},0,{}", login, response))
-                            .map(|()| None),
-                    )
-                }
-            })
+            .and_then(|r| r.text())
+            .await;
+        let response = Error::from_reqwest(response)?;
+        if response == ";" {
+            Ok(Some(PasswordRequired {
+                challstr: self,
+                login,
+                sender,
+                client,
+            }))
+        } else {
+            sender
+                .send_global_command(&format!("trn {},0,{}", login, response))
+                .await
+                .map(|()| None)
+        }
     }
 
-    pub fn login_with_password(
+    pub async fn login_with_password(
         self,
-        sender: &'a mut Sender,
-        login: &'a str,
+        sender: &mut Sender,
+        login: &str,
         password: &str,
-    ) -> impl Future<Item = (), Error = Error> + 'a {
+    ) -> Result<()> {
         self.login_with_password_and_client(sender, login, password, &Client::new())
+            .await
     }
 
-    fn login_with_password_and_client(
+    async fn login_with_password_and_client(
         self,
-        sender: &'a mut Sender,
-        login: &'a str,
+        sender: &mut Sender,
+        login: &str,
         password: &str,
         client: &Client,
-    ) -> impl Future<Item = (), Error = Error> + 'a {
+    ) -> Result<()> {
         if password.is_empty() {
-            return Either::A(self.login(sender, login).map(|_| ()));
+            return self.login(sender, login).await.map(|_| ());
         }
-        let future = client
+        let response = client
             .post("http://play.pokemonshowdown.com/action.php")
             .form(&[
                 ("act", "login"),
@@ -243,15 +229,14 @@ impl<'a> Challenge<'a> {
                 ("challstr", self.0),
             ])
             .send()
-            .and_then(|r| r.into_body().concat2())
-            .then(Error::from_reqwest)
-            .and_then(move |response| {
-                let LoginServerResponse { assertion } = serde_json::from_slice(&response[1..])
-                    .map_err(|e| Error(ErrorInner::Json(e)))?;
-                Ok(sender.send_global_command(&format!("trn {},0,{}", login, assertion)))
-            })
-            .and_then(|send| send);
-        Either::B(future)
+            .and_then(|r| r.bytes())
+            .await;
+        let response = Error::from_reqwest(response)?;
+        let LoginServerResponse { assertion } =
+            serde_json::from_slice(&response[1..]).map_err(|e| Error(ErrorInner::Json(e)))?;
+        sender
+            .send_global_command(&format!("trn {},0,{}", login, assertion))
+            .await
     }
 }
 
@@ -262,17 +247,11 @@ pub struct PasswordRequired<'a> {
     client: Client,
 }
 
-impl<'a> PasswordRequired<'a> {
-    pub fn login_with_password(
-        &'a mut self,
-        password: &str,
-    ) -> impl Future<Item = (), Error = Error> + 'a {
-        self.challstr.login_with_password_and_client(
-            self.sender,
-            self.login,
-            password,
-            &self.client,
-        )
+impl PasswordRequired<'_> {
+    pub async fn login_with_password(&mut self, password: &str) -> Result<()> {
+        self.challstr
+            .login_with_password_and_client(self.sender, self.login, password, &self.client)
+            .await
     }
 }
 

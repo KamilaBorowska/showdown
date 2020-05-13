@@ -16,58 +16,51 @@ pub mod message;
 
 use self::message::Message;
 pub use chrono;
-use futures::sync::mpsc;
-use reqwest::r#async::Client;
+use futures::stream::{SplitSink, SplitStream};
+use futures::{SinkExt, StreamExt, TryFutureExt};
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::result::Result as StdResult;
-use std::str::Utf8Error;
 use std::time::Duration;
-use tokio::prelude::stream::{SplitSink, SplitStream};
-use tokio::prelude::*;
-use websocket::r#async;
-pub use websocket::url;
-use websocket::url::Url;
-use websocket::{ClientBuilder, OwnedMessage, WebSocketError};
+use tokio::net::TcpStream;
+use tokio::sync::mpsc;
+use tokio::time;
+use tokio_tungstenite::tungstenite::{Error as WsError, Message as OwnedMessage};
+use tokio_tungstenite::WebSocketStream;
+pub use url;
+use url::Url;
 
 /// Message receiver.
 ///
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api)]
-/// #![recursion_limit = "128"]
-///
-/// use futures03::prelude::*;
+/// use futures::prelude::*;
 /// use showdown::message::{Kind, UpdateUser};
 /// use showdown::{connect, Result, RoomId};
-/// use tokio::await;
 /// use tokio::runtime::Runtime;
 ///
 /// async fn start() -> Result<()> {
-///     let (_, mut receiver) = await!(connect("showdown"))?;
-///     let message = await!(receiver.receive())?;
+///     let (_, mut receiver) = connect("showdown").await?;
+///     let message = receiver.receive().await?;
 ///     match message.kind() {
 ///         Kind::UpdateUser(UpdateUser {
 ///             username,
 ///             named: false,
 ///             ..
 ///         }) if message.room_id() == RoomId("") => {
-///             assert!(username.starts_with("Guest "));
+///             assert!(username.starts_with(" Guest "));
 ///         }
 ///         _ => panic!(),
 ///     }
 ///     Ok(())
 /// }
 ///
-/// Runtime::new()
-///     .unwrap()
-///     .block_on_all(start().boxed().compat())
-///     .unwrap();
+/// Runtime::new().unwrap().block_on(start()).unwrap();
 /// ```
 pub struct Receiver {
-    stream: SplitStream<r#async::Client<Box<dyn r#async::Stream + Send>>>,
+    stream: SplitStream<WebSocketStream<TcpStream>>,
 }
 
 impl fmt::Debug for Receiver {
@@ -79,18 +72,15 @@ impl fmt::Debug for Receiver {
 /// Message sender.
 #[derive(Debug)]
 pub struct Sender {
-    sender: mpsc::Sender<OwnedMessage>,
+    sender: mpsc::Sender<StdResult<OwnedMessage, WsError>>,
 }
 
 impl Sender {
-    fn new(sink: SplitSink<r#async::Client<Box<dyn r#async::Stream + Send>>>) -> Sender {
-        let (sender, receiver) = mpsc::channel(0);
+    fn new(sink: SplitSink<WebSocketStream<TcpStream>, OwnedMessage>) -> Sender {
+        let (sender, receiver) = mpsc::channel(1);
         tokio::spawn(
-            receiver
-                .throttle(Duration::from_millis(600))
-                .map_err(|e| panic!(e))
-                .forward(sink.sink_map_err(|e| panic!(e)))
-                .map(|_| ()),
+            time::throttle(Duration::from_millis(600), receiver)
+                .forward(sink.sink_map_err(|e| panic!(e))),
         );
         Self { sender }
     }
@@ -100,20 +90,16 @@ impl Sender {
     /// # Example
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// #![recursion_limit = "128"]
-    ///
-    /// use futures03::prelude::*;
+    /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
-    /// use tokio::await;
     /// use tokio::runtime::Runtime;
     ///
     /// async fn start() -> Result<()> {
-    ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
-    ///     await!(sender.send_global_command("cmd rooms"))?;
+    ///     let (mut sender, mut receiver) = connect("showdown").await?;
+    ///     sender.send_global_command("cmd rooms").await?;
     ///     loop {
-    ///         let received = await!(receiver.receive())?;
+    ///         let received = receiver.receive().await?;
     ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.kind() {
     ///             assert!(rooms
     ///                 .official
@@ -124,16 +110,10 @@ impl Sender {
     ///     }
     /// }
     ///
-    /// Runtime::new()
-    ///     .unwrap()
-    ///     .block_on_all(start().boxed().compat())
-    ///     .unwrap();
+    /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
-    pub fn send_global_command(
-        &mut self,
-        command: &str,
-    ) -> impl Future<Item = (), Error = Error> + '_ {
-        self.send(format!("|/{}", command))
+    pub async fn send_global_command(&mut self, command: &str) -> Result<()> {
+        self.send(format!("|/{}", command)).await
     }
 
     /// Sends a message in a chat room.
@@ -141,44 +121,33 @@ impl Sender {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// #![recursion_limit = "128"]
-    ///
-    /// use futures03::prelude::*;
+    /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
-    /// use tokio::await;
     /// use tokio::runtime::Runtime;
     ///
     /// async fn start() -> Result<()> {
-    ///     let (mut sender, mut receiver) = await!(connect("showdown"))?;
-    ///     await!(sender.send_global_command("join lobby"))?;
-    ///     await!(sender.send_chat_message(RoomId::LOBBY, "/roomdesc"));
+    ///     let (mut sender, mut receiver) = connect("showdown").await?;
+    ///     sender.send_global_command("join lobby").await?;
+    ///     sender.send_chat_message(RoomId::LOBBY, "/roomdesc").await;
     ///     loop {
-    ///         if let Kind::Html(html) = await!(receiver.receive())?.kind() {
+    ///         if let Kind::Html(html) = receiver.receive().await?.kind() {
     ///             assert!(html.contains("Relax here amidst the chaos."));
     ///             return Ok(());
     ///         }
     ///     }
     /// }
     ///
-    /// Runtime::new()
-    ///     .unwrap()
-    ///     .block_on_all(start().boxed().compat())
-    ///     .unwrap();
+    /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
-    pub fn send_chat_message(
-        &mut self,
-        room_id: RoomId<'_>,
-        message: &str,
-    ) -> impl Future<Item = (), Error = Error> + '_ {
-        self.send(format!("{}|{}", room_id.0, message))
+    pub async fn send_chat_message(&mut self, room_id: RoomId<'_>, message: &str) -> Result<()> {
+        self.send(format!("{}|{}", room_id.0, message)).await
     }
 
-    fn send(&mut self, message: String) -> impl Future<Item = (), Error = Error> + '_ {
-        (&mut self.sender)
-            .send(OwnedMessage::Text(message))
-            .map(|_| ())
+    async fn send(&mut self, message: String) -> Result<()> {
+        self.sender
+            .send(Ok(OwnedMessage::Text(message)))
+            .await
             .map_err(|e| Error(ErrorInner::Mpsc(e)))
     }
 }
@@ -193,26 +162,19 @@ impl Sender {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api)]
-/// #![recursion_limit = "128"]
-///
-/// use futures03::prelude::*;
+/// use futures::prelude::*;
 /// use showdown::{connect, Result};
-/// use tokio::await;
 /// use tokio::runtime::Runtime;
 ///
 /// async fn start() {
-///     assert!(await!(connect("showdown")).is_ok());
-///     assert!(await!(connect("fakestofservers")).is_err());
+///     assert!(connect("showdown").await.is_ok());
+///     assert!(connect("fakestofservers").await.is_err());
 /// }
 ///
-/// Runtime::new()
-///     .unwrap()
-///     .block_on_all(start().unit_error().boxed().compat())
-///     .unwrap();
+/// Runtime::new().unwrap().block_on(start());
 /// ```
-pub fn connect(name: &str) -> impl Future<Item = (Sender, Receiver), Error = Error> {
-    fetch_server_url(name).and_then(|url| connect_to_url(&url))
+pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
+    connect_to_url(&fetch_server_url(name).await?).await
 }
 
 /// Connects to an URL.
@@ -222,65 +184,54 @@ pub fn connect(name: &str) -> impl Future<Item = (Sender, Receiver), Error = Err
 /// # Examples
 ///
 /// ```rust
-/// #![feature(async_await, await_macro, futures_api)]
-/// #![recursion_limit = "128"]
-///
-/// use futures03::prelude::*;
+/// use futures::prelude::*;
 /// use showdown::{connect_to_url, fetch_server_url, Result};
-/// use tokio::await;
 /// use tokio::runtime::Runtime;
 ///
 /// async fn start() -> Result<()> {
-///     let url = await!(fetch_server_url("showdown"))?;
-///     assert_eq!(url.as_str(), "ws://sim2.psim.us:8000/showdown/websocket");
-///     await!(connect_to_url(&url))?;
+///     let url = fetch_server_url("showdown").await?;
+///     assert_eq!(url.as_str(), "ws://sim3.psim.us:8000/showdown/websocket");
+///     connect_to_url(&url).await?;
 ///     Ok(())
 /// }
 ///
-/// Runtime::new()
-///     .unwrap()
-///     .block_on_all(start().boxed().compat())
-///     .unwrap();
+/// Runtime::new().unwrap().block_on(start()).unwrap();
 /// ```
-pub fn connect_to_url(url: &Url) -> impl Future<Item = (Sender, Receiver), Error = Error> {
-    ClientBuilder::from_url(url).async_connect(None).then(|r| {
-        let (sink, stream) = Error::from_ws(r)?.0.split();
-        Ok((Sender::new(sink), Receiver { stream }))
-    })
+pub async fn connect_to_url(url: &Url) -> Result<(Sender, Receiver)> {
+    let (sink, stream) = Error::from_ws(tokio_tungstenite::connect_async(url).await)?
+        .0
+        .split();
+    Ok((Sender::new(sink), Receiver { stream }))
 }
 
-pub fn fetch_server_url(name: &str) -> impl Future<Item = Url, Error = Error> {
-    Client::new()
+pub async fn fetch_server_url(name: &str) -> Result<Url> {
+    let result = reqwest::Client::new()
         .get(&format!(
             "https://pokemonshowdown.com/servers/{}.json",
             name
         ))
         .send()
-        .and_then(|mut r| r.json())
-        .then(|result| {
-            let Server { host, port } = Error::from_reqwest(result)?;
-            let protocol = if port == 443 { "wss" } else { "ws" };
-            // Concatenation is fine, as it's also done by the official Showdown client
-            Url::parse(&format!(
-                "{}://{}:{}/showdown/websocket",
-                protocol, host, port
-            ))
-            .map_err(|e| Error(ErrorInner::Url(e)))
-        })
+        .and_then(|r| r.json())
+        .await;
+    let Server { host, port } = Error::from_reqwest(result)?;
+    let protocol = if port == 443 { "wss" } else { "ws" };
+    // Concatenation is fine, as it's also done by the official Showdown client
+    Url::parse(&format!(
+        "{}://{}:{}/showdown/websocket",
+        protocol, host, port
+    ))
+    .map_err(|e| Error(ErrorInner::Url(e)))
 }
 
 impl Receiver {
-    pub fn receive(&mut self) -> impl Future<Item = Message, Error = Error> + '_ {
-        (&mut self.stream)
-            .into_future()
-            .then(|e| Error::from_ws(e.map_err(|e| e.0)))
-            .and_then(|(message, _)| {
-                if let Some(OwnedMessage::Text(text)) = message {
-                    Ok(Message::new(text))
-                } else {
-                    Err(Error(ErrorInner::UnrecognizedMessage(message)))
-                }
-            })
+    pub async fn receive(&mut self) -> Result<Message> {
+        let e = self.stream.next().await;
+        let message = Error::from_ws(e.transpose())?;
+        if let Some(OwnedMessage::Text(text)) = message {
+            Ok(Message::new(text))
+        } else {
+            Err(Error(ErrorInner::UnrecognizedMessage(message)))
+        }
     }
 }
 
@@ -304,7 +255,7 @@ pub type Result<T> = StdResult<T, Error>;
 pub struct Error(ErrorInner);
 
 impl Error {
-    fn from_ws<T>(r: StdResult<T, WebSocketError>) -> Result<T> {
+    fn from_ws<T>(r: StdResult<T, tokio_tungstenite::tungstenite::Error>) -> Result<T> {
         r.map_err(|e| Error(ErrorInner::WebSocket(e)))
     }
 
@@ -315,11 +266,10 @@ impl Error {
 
 #[derive(Debug)]
 enum ErrorInner {
-    WebSocket(WebSocketError),
+    WebSocket(WsError),
     Reqwest(reqwest::Error),
     Url(url::ParseError),
-    Mpsc(mpsc::SendError<OwnedMessage>),
-    Utf8(Utf8Error),
+    Mpsc(mpsc::error::SendError<StdResult<OwnedMessage, WsError>>),
     Json(serde_json::Error),
     UnrecognizedMessage(Option<OwnedMessage>),
 }
@@ -331,7 +281,6 @@ impl Display for Error {
             ErrorInner::Reqwest(e) => e.fmt(f),
             ErrorInner::Url(e) => e.fmt(f),
             ErrorInner::Mpsc(e) => e.fmt(f),
-            ErrorInner::Utf8(e) => e.fmt(f),
             ErrorInner::Json(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
         }
@@ -345,7 +294,6 @@ impl StdError for Error {
             ErrorInner::Reqwest(e) => Some(e),
             ErrorInner::Url(e) => Some(e),
             ErrorInner::Mpsc(e) => Some(e),
-            ErrorInner::Utf8(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
             ErrorInner::UnrecognizedMessage(_) => None,
         }
