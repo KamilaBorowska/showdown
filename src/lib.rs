@@ -15,7 +15,7 @@ pub mod message;
 use self::message::Message;
 pub use chrono;
 use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt, TryFutureExt};
+use futures::{SinkExt, StreamExt};
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -203,15 +203,13 @@ pub async fn connect_to_url(url: &Url) -> Result<(Sender, Receiver)> {
 }
 
 pub async fn fetch_server_url(name: &str) -> Result<Url> {
-    let result = reqwest::Client::new()
-        .get(&format!(
-            "https://pokemonshowdown.com/servers/{}.json",
-            name
-        ))
-        .send()
-        .and_then(|r| r.json())
-        .await;
-    let Server { host, port } = Error::from_reqwest(result)?;
+    let Server { host, port } = surf::get(&format!(
+        "https://pokemonshowdown.com/servers/{}.json",
+        name
+    ))
+    .recv_json()
+    .await
+    .map_err(|e| Error(ErrorInner::Surf(e)))?;
     let protocol = if port == 443 { "wss" } else { "ws" };
     // Concatenation is fine, as it's also done by the official Showdown client
     Url::parse(&format!(
@@ -256,16 +254,12 @@ impl Error {
     fn from_ws<T>(r: StdResult<T, tokio_tungstenite::tungstenite::Error>) -> Result<T> {
         r.map_err(|e| Error(ErrorInner::WebSocket(e)))
     }
-
-    fn from_reqwest<T>(r: StdResult<T, reqwest::Error>) -> Result<T> {
-        r.map_err(|e| Error(ErrorInner::Reqwest(e)))
-    }
 }
 
 #[derive(Debug)]
 enum ErrorInner {
     WebSocket(WsError),
-    Reqwest(reqwest::Error),
+    Surf(surf::Exception),
     Url(url::ParseError),
     Mpsc(mpsc::error::SendError<StdResult<OwnedMessage, WsError>>),
     Json(serde_json::Error),
@@ -276,7 +270,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             ErrorInner::WebSocket(e) => e.fmt(f),
-            ErrorInner::Reqwest(e) => e.fmt(f),
+            ErrorInner::Surf(e) => e.fmt(f),
             ErrorInner::Url(e) => e.fmt(f),
             ErrorInner::Mpsc(e) => e.fmt(f),
             ErrorInner::Json(e) => e.fmt(f),
@@ -289,7 +283,7 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.0 {
             ErrorInner::WebSocket(e) => Some(e),
-            ErrorInner::Reqwest(e) => Some(e),
+            ErrorInner::Surf(e) => Some(&**e),
             ErrorInner::Url(e) => Some(e),
             ErrorInner::Mpsc(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
