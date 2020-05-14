@@ -190,7 +190,7 @@ pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
 ///
 /// async fn start() -> Result<()> {
 ///     let url = fetch_server_url("showdown").await?;
-///     assert_eq!(url.as_str(), "ws://sim3.psim.us:8000/showdown/websocket");
+///     assert_eq!(url.as_str(), "wss://sim3.psim.us/showdown/websocket");
 ///     connect_to_url(&url).await?;
 ///     Ok(())
 /// }
@@ -205,20 +205,23 @@ pub async fn connect_to_url(url: &Url) -> Result<(Sender, Receiver)> {
 }
 
 pub async fn fetch_server_url(name: &str) -> Result<Url> {
-    let Server { host, port } = surf::get(&format!(
-        "https://pokemonshowdown.com/servers/{}.json",
-        name
-    ))
-    .recv_json()
-    .await
-    .map_err(|e| Error(ErrorInner::Surf(e)))?;
-    let protocol = if port == 443 { "wss" } else { "ws" };
-    // Concatenation is fine, as it's also done by the official Showdown client
-    Url::parse(&format!(
-        "{}://{}:{}/showdown/websocket",
-        protocol, host, port
-    ))
-    .map_err(|e| Error(ErrorInner::Url(e)))
+    let owned_url;
+    let url = if name == "showdown" {
+        "wss://sim3.psim.us/showdown/websocket"
+    } else {
+        let Server { host, port } = surf::get(&format!(
+            "https://pokemonshowdown.com/servers/{}.json",
+            name
+        ))
+        .recv_json()
+        .await
+        .map_err(|e| Error(ErrorInner::Surf(e)))?;
+        let protocol = if port == 443 { "wss" } else { "ws" };
+        // Concatenation is fine, as it's also done by the official Showdown client
+        owned_url = format!("{}://{}:{}/showdown/websocket", protocol, host, port);
+        &owned_url
+    };
+    Url::parse(url).map_err(|e| Error(ErrorInner::Url(e)))
 }
 
 impl Receiver {
