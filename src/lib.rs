@@ -2,9 +2,7 @@
 //!
 //! # Stability
 //!
-//! This crate is not stable, not even close. It requires nightly to be usable
-//! in practice as it's impossible to deal with lifetime errors related to
-//! self-borrows without async blocks. Additionally, the APIs of this crate are
+//! This crate is not stable, not even close. The APIs of this crate are
 //! heavily experimented on, and there isn't going to be depreciation period for
 //! removed features. Don't use this crate if you aren't prepared for constant
 //! breakage.
