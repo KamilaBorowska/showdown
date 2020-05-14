@@ -50,6 +50,7 @@ fn split2(arg: &str) -> (&str, &str) {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Kind<'a> {
     Chat(Chat<'a>),
     Challenge(Challenge<'a>),
