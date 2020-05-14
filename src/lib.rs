@@ -14,8 +14,8 @@ pub mod message;
 
 use self::message::Message;
 pub use chrono;
-use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
+use futures::stream::SplitStream;
+use futures::{Sink, SinkExt, StreamExt};
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -24,6 +24,8 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::time;
+use tokio_tls::TlsStream;
+use tokio_tungstenite::stream::Stream;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as OwnedMessage};
 use tokio_tungstenite::WebSocketStream;
 pub use url;
@@ -58,7 +60,7 @@ use url::Url;
 /// Runtime::new().unwrap().block_on(start()).unwrap();
 /// ```
 pub struct Receiver {
-    stream: SplitStream<WebSocketStream<TcpStream>>,
+    stream: SplitStream<WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>>,
 }
 
 impl fmt::Debug for Receiver {
@@ -74,7 +76,7 @@ pub struct Sender {
 }
 
 impl Sender {
-    fn new(sink: SplitSink<WebSocketStream<TcpStream>, OwnedMessage>) -> Sender {
+    fn new(sink: impl Sink<OwnedMessage, Error = WsError> + Send + 'static) -> Sender {
         let (sender, receiver) = mpsc::channel(1);
         tokio::spawn(
             time::throttle(Duration::from_millis(600), receiver)
