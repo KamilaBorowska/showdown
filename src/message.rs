@@ -98,11 +98,11 @@ impl<'a> Chat<'a> {
         NaiveDateTime::from_timestamp(self.timestamp.parse().unwrap(), 0)
     }
 
-    pub fn user(&self) -> &str {
+    pub fn user(&self) -> &'a str {
         self.user
     }
 
-    pub fn message(&self) -> &str {
+    pub fn message(&self) -> &'a str {
         let message = self.message;
         if message.ends_with('\n') {
             &message[..message.len() - 1]
