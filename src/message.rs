@@ -342,6 +342,7 @@ pub enum RoomType {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum QueryResponse<'a> {
     Rooms(RoomsList<'a>),
 }
