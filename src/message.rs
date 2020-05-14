@@ -203,16 +203,6 @@ impl<'a> Challenge<'a> {
         login: &str,
         password: &str,
     ) -> Result<()> {
-        self.login_with_password_and_client(sender, login, password)
-            .await
-    }
-
-    async fn login_with_password_and_client(
-        self,
-        sender: &mut Sender,
-        login: &str,
-        password: &str,
-    ) -> Result<()> {
         if password.is_empty() {
             return self.login(sender, login).await.map(|_| ());
         }
@@ -244,7 +234,7 @@ pub struct PasswordRequired<'a> {
 impl PasswordRequired<'_> {
     pub async fn login_with_password(&mut self, password: &str) -> Result<()> {
         self.challstr
-            .login_with_password_and_client(self.sender, self.login, password)
+            .login_with_password(self.sender, self.login, password)
             .await
     }
 }
