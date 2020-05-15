@@ -242,7 +242,7 @@ impl<'a> Challenge<'a> {
             }))
         } else {
             sender
-                .send_global_command(&format!("trn {},0,{}", login, response))
+                .send_global_command(format_args!("trn {},0,{}", login, response))
                 .await
                 .map(|()| None)
         }
@@ -271,7 +271,7 @@ impl<'a> Challenge<'a> {
         let LoginServerResponse { assertion } =
             serde_json::from_slice(&response[1..]).map_err(|e| Error(ErrorInner::Json(e)))?;
         sender
-            .send_global_command(&format!("trn {},0,{}", login, assertion))
+            .send_global_command(format_args!("trn {},0,{}", login, assertion))
             .await
     }
 }
