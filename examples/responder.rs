@@ -15,8 +15,11 @@ async fn start(login: String, password: String) -> Result<()> {
                 sender.send_global_command("join bot dev").await?
             }
             Kind::Text(text) if text.message() == ".yay" => {
-                text.reply(&mut sender, format!("YAY {}!", text.user().to_uppercase()))
-                    .await?;
+                text.reply(
+                    &mut sender,
+                    format_args!("YAY {}!", text.user().to_uppercase()),
+                )
+                .await?;
             }
             _ => {}
         }
