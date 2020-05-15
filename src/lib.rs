@@ -117,6 +117,11 @@ impl Sender {
     }
 
     /// Sends a message in a chat room.
+    pub async fn send_chat_message(&mut self, room_id: RoomId<'_>, message: &str) -> Result<()> {
+        self.send_chat_prefixed(room_id, ' ', message).await
+    }
+
+    /// Sends a command in a chat room.
     ///
     /// # Examples
     ///
@@ -129,7 +134,7 @@ impl Sender {
     /// async fn start() -> Result<()> {
     ///     let (mut sender, mut receiver) = connect("showdown").await?;
     ///     sender.send_global_command("join lobby").await?;
-    ///     sender.send_chat_message(RoomId::LOBBY, "/roomdesc").await;
+    ///     sender.send_chat_command(RoomId::LOBBY, "roomdesc").await;
     ///     loop {
     ///         if let Kind::Html(html) = receiver.receive().await?.kind() {
     ///             assert!(html.contains("Relax here amidst the chaos."));
@@ -140,8 +145,22 @@ impl Sender {
     ///
     /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
-    pub async fn send_chat_message(&mut self, room_id: RoomId<'_>, message: &str) -> Result<()> {
-        self.send(format!("{}|{}", room_id.0, message)).await
+    pub async fn send_chat_command(&mut self, room_id: RoomId<'_>, command: &str) -> Result<()> {
+        self.send_chat_prefixed(room_id, '/', command).await
+    }
+
+    pub async fn broadcast_command(&mut self, room_id: RoomId<'_>, command: &str) -> Result<()> {
+        self.send_chat_prefixed(room_id, '!', command).await
+    }
+
+    async fn send_chat_prefixed(
+        &mut self,
+        room_id: RoomId<'_>,
+        prefix: char,
+        message: &str,
+    ) -> Result<()> {
+        self.send(format!("{}|{}{}", room_id.0, prefix, message))
+            .await
     }
 
     async fn send(&mut self, message: String) -> Result<()> {
