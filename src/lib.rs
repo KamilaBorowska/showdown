@@ -7,9 +7,6 @@
 //! removed features. Don't use this crate if you aren't prepared for constant
 //! breakage.
 
-#[macro_use]
-extern crate rental;
-
 pub mod message;
 
 use self::message::Message;
@@ -49,7 +46,7 @@ use url::Url;
 ///             username,
 ///             named: false,
 ///             ..
-///         }) if message.room_id() == RoomId("") => {
+///         }) => {
 ///             assert!(username.starts_with(" Guest "));
 ///         }
 ///         _ => panic!(),
@@ -112,12 +109,16 @@ impl Sender {
     ///
     /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
-    pub async fn send_global_command(&mut self, command: &str) -> Result<()> {
+    pub async fn send_global_command(&mut self, command: impl Display) -> Result<()> {
         self.send(format!("|/{}", command)).await
     }
 
     /// Sends a message in a chat room.
-    pub async fn send_chat_message(&mut self, room_id: RoomId<'_>, message: &str) -> Result<()> {
+    pub async fn send_chat_message(
+        &mut self,
+        room_id: RoomId<'_>,
+        message: impl Display,
+    ) -> Result<()> {
         self.send_chat_prefixed(room_id, ' ', message).await
     }
 
@@ -145,11 +146,19 @@ impl Sender {
     ///
     /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
-    pub async fn send_chat_command(&mut self, room_id: RoomId<'_>, command: &str) -> Result<()> {
+    pub async fn send_chat_command(
+        &mut self,
+        room_id: RoomId<'_>,
+        command: impl Display,
+    ) -> Result<()> {
         self.send_chat_prefixed(room_id, '/', command).await
     }
 
-    pub async fn broadcast_command(&mut self, room_id: RoomId<'_>, command: &str) -> Result<()> {
+    pub async fn broadcast_command(
+        &mut self,
+        room_id: RoomId<'_>,
+        command: impl Display,
+    ) -> Result<()> {
         self.send_chat_prefixed(room_id, '!', command).await
     }
 
@@ -157,7 +166,7 @@ impl Sender {
         &mut self,
         room_id: RoomId<'_>,
         prefix: char,
-        message: &str,
+        message: impl Display,
     ) -> Result<()> {
         self.send(format!("{}|{}{}", room_id.0, prefix, message))
             .await
@@ -247,8 +256,8 @@ impl Receiver {
     pub async fn receive(&mut self) -> Result<Message> {
         let e = self.stream.next().await;
         let message = Error::from_ws(e.transpose())?;
-        if let Some(OwnedMessage::Text(text)) = message {
-            Ok(Message::new(text))
+        if let Some(OwnedMessage::Text(raw)) = message {
+            Ok(Message { raw })
         } else {
             Err(Error(ErrorInner::UnrecognizedMessage(message)))
         }

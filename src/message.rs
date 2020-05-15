@@ -1,42 +1,38 @@
-mod parsed_message;
-
-use self::parsed_message::ParsedMessage;
-use self::rental_internal::RentalMessage;
 use crate::{Error, ErrorInner, Result, RoomId, Sender};
 use chrono::NaiveDateTime;
 use futures::TryFutureExt;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
+use std::fmt::Display;
 use std::str;
 
 /// Owned message type
 #[derive(Debug)]
 pub struct Message {
-    rental: RentalMessage,
+    pub(crate) raw: String,
 }
 
 impl Message {
-    pub(crate) fn new(message: String) -> Self {
-        Self {
-            rental: RentalMessage::new(message, |message| ParsedMessage::parse_message(message)),
-        }
-    }
-
-    pub fn room_id(&self) -> RoomId<'_> {
-        self.rental.suffix().room_id
-    }
-
-    pub fn kind(&self) -> &Kind<'_> {
-        &self.rental.suffix().kind
-    }
-}
-
-rental! {
-    mod rental_internal {
-        #[rental(covariant, debug)]
-        pub struct RentalMessage {
-            message: String,
-            parsed: super::ParsedMessage<'message>,
+    pub fn kind(&self) -> Kind<'_> {
+        let full_message: &str = &self.raw;
+        let (room, message) = if full_message.starts_with('>') {
+            let without_prefix = &full_message[1..];
+            let index = without_prefix
+                .find('\n')
+                .unwrap_or_else(|| without_prefix.len());
+            (
+                &without_prefix[..index],
+                without_prefix.get(index + 1..).unwrap_or(""),
+            )
+        } else {
+            ("", full_message)
+        };
+        if message.starts_with('|') {
+            let (command, arg) = split2(&message[1..]);
+            Kind::parse(RoomId(room), command, arg)
+                .unwrap_or_else(|| Kind::Unrecognized(UnrecognizedMessage(full_message)))
+        } else {
+            Kind::Unrecognized(UnrecognizedMessage(full_message))
         }
     }
 }
@@ -51,7 +47,7 @@ fn split2(arg: &str) -> (&str, &str) {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Kind<'a> {
-    Chat(Chat<'a>),
+    Text(Text<'a>),
     Challenge(Challenge<'a>),
     Html(&'a str),
     NoInit(NoInit<'a>),
@@ -62,9 +58,10 @@ pub enum Kind<'a> {
 }
 
 impl Kind<'_> {
-    fn parse<'a>(command: &str, arguments: &'a str) -> Option<Kind<'a>> {
+    fn parse<'a>(room_id: RoomId<'a>, command: &str, arguments: &'a str) -> Option<Kind<'a>> {
         Some(match command {
-            "c:" => Kind::Chat(Chat::parse(arguments)),
+            "c:" => Kind::Text(Text::Chat(Chat::parse(room_id, arguments))),
+            "pm" => Kind::Text(Text::Private(Private::parse(arguments))),
             "challstr" => Kind::Challenge(Challenge(arguments)),
             "html" => Kind::Html(arguments),
             "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
@@ -77,17 +74,52 @@ impl Kind<'_> {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub enum Text<'a> {
+    Chat(Chat<'a>),
+    Private(Private<'a>),
+}
+
+impl<'a> Text<'a> {
+    pub async fn reply(&self, sender: &mut Sender, message: impl Display) -> Result<()> {
+        match self {
+            Text::Chat(chat) => sender.send_chat_message(chat.room_id(), message).await,
+            Text::Private(private) => {
+                sender
+                    .send_global_command(format_args!("pm {},{}", private.from, message))
+                    .await
+            }
+        }
+    }
+
+    pub fn message(&self) -> &'a str {
+        match self {
+            Text::Chat(chat) => chat.message(),
+            Text::Private(private) => private.message,
+        }
+    }
+
+    pub fn user(&self) -> &'a str {
+        match self {
+            Text::Chat(chat) => chat.user(),
+            Text::Private(private) => private.from,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct Chat<'a> {
+    room_id: RoomId<'a>,
     timestamp: &'a str,
     user: &'a str,
     message: &'a str,
 }
 
 impl<'a> Chat<'a> {
-    fn parse(arguments: &'a str) -> Self {
+    fn parse(room_id: RoomId<'a>, arguments: &'a str) -> Self {
         let (timestamp, arguments) = split2(arguments);
         let (user, message) = split2(arguments);
         Self {
+            room_id,
             timestamp,
             user,
             message,
@@ -109,6 +141,25 @@ impl<'a> Chat<'a> {
         } else {
             message
         }
+    }
+
+    pub fn room_id(&self) -> RoomId<'a> {
+        self.room_id
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Private<'a> {
+    pub from: &'a str,
+    pub to: &'a str,
+    pub message: &'a str,
+}
+
+impl<'a> Private<'a> {
+    fn parse(arguments: &'a str) -> Self {
+        let (from, arguments) = split2(arguments);
+        let (to, message) = split2(arguments);
+        Self { from, to, message }
     }
 }
 

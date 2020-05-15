@@ -14,11 +14,9 @@ async fn start(login: String, password: String) -> Result<()> {
             Kind::UpdateUser(UpdateUser { named: true, .. }) => {
                 sender.send_global_command("join bot dev").await?
             }
-            Kind::Chat(chat) if chat.message() == ".yay" => {
-                let response = format!("YAY {}!", chat.user().to_uppercase());
-                sender
-                    .send_chat_message(message.room_id(), &response)
-                    .await?
+            Kind::Text(text) if text.message() == ".yay" => {
+                text.reply(&mut sender, format!("YAY {}!", text.user().to_uppercase()))
+                    .await?;
             }
             _ => {}
         }
