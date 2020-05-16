@@ -177,9 +177,9 @@ impl<'a> Challenge<'a> {
     /// use rand::prelude::*;
     /// use showdown::message::{Kind, NoInit, NoInitKind};
     /// use showdown::{connect, Result, RoomId};
-    /// use tokio::runtime::Runtime;
     ///
-    /// async fn start() -> Result<()> {
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
     ///     let (mut sender, mut receiver) = connect("showdown").await?;
     ///     sender.send_global_command("join bot dev").await?;
     ///     let mut received;
@@ -216,8 +216,6 @@ impl<'a> Challenge<'a> {
     ///         .map(|_| chars.choose(&mut thread_rng()).unwrap())
     ///         .collect()
     /// }
-    ///
-    /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
     pub async fn login(
         self,

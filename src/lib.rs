@@ -36,9 +36,9 @@ use url::Url;
 /// use futures::prelude::*;
 /// use showdown::message::{Kind, UpdateUser};
 /// use showdown::{connect, Result, RoomId};
-/// use tokio::runtime::Runtime;
 ///
-/// async fn start() -> Result<()> {
+/// #[tokio::main]
+/// async fn main() -> Result<()> {
 ///     let (_, mut receiver) = connect("showdown").await?;
 ///     let message = receiver.receive().await?;
 ///     match message.kind() {
@@ -53,8 +53,6 @@ use url::Url;
 ///     }
 ///     Ok(())
 /// }
-///
-/// Runtime::new().unwrap().block_on(start()).unwrap();
 /// ```
 pub struct Receiver {
     stream: SplitStream<WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>>,
@@ -90,9 +88,9 @@ impl Sender {
     /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
-    /// use tokio::runtime::Runtime;
     ///
-    /// async fn start() -> Result<()> {
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
     ///     let (mut sender, mut receiver) = connect("showdown").await?;
     ///     sender.send_global_command("cmd rooms").await?;
     ///     loop {
@@ -106,8 +104,6 @@ impl Sender {
     ///         }
     ///     }
     /// }
-    ///
-    /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
     pub async fn send_global_command(&mut self, command: impl Display) -> Result<()> {
         self.send(format!("|/{}", command)).await
@@ -130,9 +126,9 @@ impl Sender {
     /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
-    /// use tokio::runtime::Runtime;
     ///
-    /// async fn start() -> Result<()> {
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
     ///     let (mut sender, mut receiver) = connect("showdown").await?;
     ///     sender.send_global_command("join lobby").await?;
     ///     sender.send_chat_command(RoomId::LOBBY, "roomdesc").await;
@@ -143,8 +139,6 @@ impl Sender {
     ///         }
     ///     }
     /// }
-    ///
-    /// Runtime::new().unwrap().block_on(start()).unwrap();
     /// ```
     pub async fn send_chat_command(
         &mut self,
@@ -192,14 +186,12 @@ impl Sender {
 /// ```
 /// use futures::prelude::*;
 /// use showdown::{connect, Result};
-/// use tokio::runtime::Runtime;
 ///
-/// async fn start() {
+/// #[tokio::main]
+/// async fn main() {
 ///     assert!(connect("showdown").await.is_ok());
 ///     assert!(connect("fakestofservers").await.is_err());
 /// }
-///
-/// Runtime::new().unwrap().block_on(start());
 /// ```
 pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
     connect_to_url(&fetch_server_url(name).await?).await
@@ -214,16 +206,14 @@ pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
 /// ```rust
 /// use futures::prelude::*;
 /// use showdown::{connect_to_url, fetch_server_url, Result};
-/// use tokio::runtime::Runtime;
 ///
-/// async fn start() -> Result<()> {
+/// #[tokio::main]
+/// async fn main() -> Result<()> {
 ///     let url = fetch_server_url("smogtours").await?;
 ///     assert_eq!(url.as_str(), "ws://sim3.psim.us:8002/showdown/websocket");
 ///     connect_to_url(&url).await?;
 ///     Ok(())
 /// }
-///
-/// Runtime::new().unwrap().block_on(start()).unwrap();
 /// ```
 pub async fn connect_to_url(url: &Url) -> Result<(Sender, Receiver)> {
     let (sink, stream) = Error::from_ws(tokio_tungstenite::connect_async(url).await)?
