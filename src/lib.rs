@@ -217,8 +217,8 @@ pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
 /// use tokio::runtime::Runtime;
 ///
 /// async fn start() -> Result<()> {
-///     let url = fetch_server_url("showdown").await?;
-///     assert_eq!(url.as_str(), "wss://sim3.psim.us/showdown/websocket");
+///     let url = fetch_server_url("smogtours").await?;
+///     assert_eq!(url.as_str(), "ws://sim3.psim.us:8002/showdown/websocket");
 ///     connect_to_url(&url).await?;
 ///     Ok(())
 /// }
