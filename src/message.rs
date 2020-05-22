@@ -1,5 +1,6 @@
 use crate::{Error, ErrorInner, Result, RoomId, Sender};
-use chrono::NaiveDateTime;
+use chrono::offset::Utc;
+use chrono::{DateTime, NaiveDateTime};
 use futures::TryFutureExt;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
@@ -126,8 +127,11 @@ impl<'a> Chat<'a> {
         }
     }
 
-    pub fn timestamp(&self) -> NaiveDateTime {
-        NaiveDateTime::from_timestamp(self.timestamp.parse().unwrap(), 0)
+    pub fn timestamp(&self) -> DateTime<Utc> {
+        DateTime::from_utc(
+            NaiveDateTime::from_timestamp(self.timestamp.parse().unwrap(), 0),
+            Utc,
+        )
     }
 
     pub fn user(&self) -> &'a str {
