@@ -1,4 +1,4 @@
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
 use showdown::chrono::{SubsecRound, Utc};
 use showdown::message::{Kind, Text};
 use showdown::{Receiver, RoomId, Sender};
@@ -40,5 +40,24 @@ async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
     assert_eq!(chat.timestamp(), time);
     assert_eq!(chat.user(), "+xfix");
     assert_eq!(chat.message(), "Hello|world");
+    Ok(())
+}
+
+#[tokio::test]
+async fn reply_test() -> Result<(), Box<dyn Error>> {
+    let (mut socket, mut sender, mut receiver) = mock_connection().await?;
+    socket
+        .send(Message::Text("|c:|0|+xfix|Hi there".into()))
+        .await?;
+    let message = receiver.receive().await?;
+    let text = match message.kind() {
+        Kind::Text(text) => text,
+        _ => unreachable!(),
+    };
+    text.reply(&mut sender, "Hi there").await?;
+    assert_eq!(
+        socket.next().await.transpose()?,
+        Some(Message::Text("| Hi there".into())),
+    );
     Ok(())
 }
