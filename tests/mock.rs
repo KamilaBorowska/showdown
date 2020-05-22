@@ -14,7 +14,7 @@ async fn mock_connection() -> Result<(WebSocketStream<TcpStream>, Sender, Receiv
     let port = listener.local_addr()?.port();
     let uri = format!("ws://127.0.0.1:{}", port).parse()?;
     let (socket, result) = tokio::join!(
-        async move { tokio_tungstenite::accept_async(listener.accept().await?.0,).await },
+        async move { tokio_tungstenite::accept_async(listener.accept().await?.0).await },
         showdown::connect_to_url(&uri),
     );
     let (sender, receiver) = result?;
