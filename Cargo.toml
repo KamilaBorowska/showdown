@@ -14,7 +14,7 @@ serde = "1.0.84"
 serde_derive = "1.0.84"
 serde_json = "1.0.35"
 surf = "1.0.3"
-tokio = { version = "0.2.20", features = [ "stream", "sync", "time" ] }
+tokio = "0.2.20"
 tokio-tls = "0.3.1"
 tokio-tungstenite = { version = "0.10.1", features = [ "tls" ] }
 url = "2.1.1"

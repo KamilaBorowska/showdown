@@ -11,22 +11,21 @@ pub mod message;
 
 use self::message::Message;
 pub use chrono;
-use futures::stream::SplitStream;
-use futures::{Sink, SinkExt, StreamExt};
+use futures::stream::{SplitSink, SplitStream};
+use futures::{SinkExt, StreamExt};
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::result::Result as StdResult;
-use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
-use tokio::time;
 use tokio_tls::TlsStream;
 use tokio_tungstenite::stream::Stream;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as OwnedMessage};
 use tokio_tungstenite::WebSocketStream;
 pub use url;
 use url::Url;
+
+type SocketStream = WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>;
 
 /// Message receiver.
 ///
@@ -55,7 +54,7 @@ use url::Url;
 /// }
 /// ```
 pub struct Receiver {
-    stream: SplitStream<WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>>,
+    stream: SplitStream<SocketStream>,
 }
 
 impl fmt::Debug for Receiver {
@@ -65,19 +64,19 @@ impl fmt::Debug for Receiver {
 }
 
 /// Message sender.
-#[derive(Debug)]
 pub struct Sender {
-    sender: mpsc::Sender<StdResult<OwnedMessage, WsError>>,
+    sink: SplitSink<SocketStream, OwnedMessage>,
+}
+
+impl fmt::Debug for Sender {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Sender").finish()
+    }
 }
 
 impl Sender {
-    fn new(sink: impl Sink<OwnedMessage, Error = WsError> + Send + 'static) -> Sender {
-        let (sender, receiver) = mpsc::channel(1);
-        tokio::spawn(
-            time::throttle(Duration::from_millis(600), receiver)
-                .forward(sink.sink_map_err(|e| panic!(e))),
-        );
-        Self { sender }
+    fn new(sink: SplitSink<SocketStream, OwnedMessage>) -> Sender {
+        Self { sink }
     }
 
     /// Sends a global command.
@@ -167,10 +166,7 @@ impl Sender {
     }
 
     async fn send(&mut self, message: String) -> Result<()> {
-        self.sender
-            .send(Ok(OwnedMessage::Text(message)))
-            .await
-            .map_err(|e| Error(ErrorInner::Mpsc(e)))
+        Error::from_ws(self.sink.send(OwnedMessage::Text(message)).await)
     }
 }
 
@@ -284,7 +280,6 @@ enum ErrorInner {
     WebSocket(WsError),
     Surf(surf::Exception),
     Url(url::ParseError),
-    Mpsc(mpsc::error::SendError<StdResult<OwnedMessage, WsError>>),
     Json(serde_json::Error),
     UnrecognizedMessage(Option<OwnedMessage>),
 }
@@ -295,7 +290,6 @@ impl Display for Error {
             ErrorInner::WebSocket(e) => e.fmt(f),
             ErrorInner::Surf(e) => e.fmt(f),
             ErrorInner::Url(e) => e.fmt(f),
-            ErrorInner::Mpsc(e) => e.fmt(f),
             ErrorInner::Json(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
         }
@@ -308,7 +302,6 @@ impl StdError for Error {
             ErrorInner::WebSocket(e) => Some(e),
             ErrorInner::Surf(e) => Some(&**e),
             ErrorInner::Url(e) => Some(e),
-            ErrorInner::Mpsc(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
             ErrorInner::UnrecognizedMessage(_) => None,
         }
