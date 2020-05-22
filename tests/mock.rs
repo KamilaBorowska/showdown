@@ -61,3 +61,14 @@ async fn reply_test() -> Result<(), Box<dyn Error>> {
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn test_global_command() -> Result<(), Box<dyn Error>> {
+    let (mut socket, mut sender, _receiver) = mock_connection().await?;
+    sender.send_global_command("hey there").await?;
+    assert_eq!(
+        socket.next().await.transpose()?,
+        Some(Message::Text("|/hey there".into())),
+    );
+    Ok(())
+}
