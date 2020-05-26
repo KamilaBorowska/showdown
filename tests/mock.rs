@@ -1,7 +1,8 @@
 use futures::{SinkExt, StreamExt};
 use showdown::chrono::{SubsecRound, Utc};
-use showdown::message::{Kind, Text};
+use showdown::message::{Kind, QueryResponse, Room, Text};
 use showdown::{Receiver, RoomId, Sender};
+use std::borrow::Cow;
 use std::error::Error;
 use std::net::Ipv4Addr;
 use tokio::net::{TcpListener, TcpStream};
@@ -70,5 +71,61 @@ async fn test_global_command() -> Result<(), Box<dyn Error>> {
         socket.next().await.transpose()?,
         Some(Message::Text("|/hey there".into())),
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn parsing_roomlist() -> Result<(), Box<dyn Error>> {
+    let (mut socket, _sender, mut receiver) = mock_connection().await?;
+    socket
+        .send(Message::Text(
+            r#"|queryresponse|rooms|{
+                "official": [
+                    {
+                        "title": "a\"b",
+                        "desc": "\n",
+                        "userCount": 2
+                    }
+                ],
+                "pspl": [],
+                "chat": [
+                    {
+                        "title": "Nice room",
+                        "desc": "No need to own that one",
+                        "userCount": 1
+                    }
+                ],
+                "userCount": 42,
+                "battleCount": 24
+            }"#
+            .into(),
+        ))
+        .await?;
+    match receiver.receive().await?.kind() {
+        Kind::QueryResponse(QueryResponse::Rooms(rooms_list)) => {
+            let mut iter = rooms_list.iter();
+            match iter.next() {
+                Some(Room {
+                    title: Cow::Owned(title),
+                    desc: Cow::Owned(desc),
+                    ..
+                }) => {
+                    assert_eq!(title, "a\"b");
+                    assert_eq!(desc, "\n");
+                }
+                _ => unreachable!(),
+            }
+            match iter.next() {
+                Some(Room {
+                    title: Cow::Borrowed("Nice room"),
+                    desc: Cow::Borrowed("No need to own that one"),
+                    ..
+                }) => {}
+                _ => unreachable!(),
+            }
+            assert!(iter.next().is_none());
+        }
+        _ => unreachable!(),
+    }
     Ok(())
 }
