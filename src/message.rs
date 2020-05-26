@@ -54,6 +54,7 @@ fn split2(arg: &str) -> (&str, &str) {
 /// to use this structure when `Message` is not in scope will
 /// cause borrow checker failures.
 pub enum Kind<'a> {
+    /// Text from chat or PMs.
     Text(Text<'a>),
     Challenge(Challenge<'a>),
     Html(&'a str),
