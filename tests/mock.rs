@@ -36,7 +36,7 @@ async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
         Kind::Text(Text::Chat(chat)) => chat,
         _ => unreachable!(),
     };
-    assert_eq!(chat.room_id(), RoomId::LOBBY);
+    assert_eq!(chat.room_id().0, RoomId::LOBBY.0);
     assert_eq!(chat.timestamp(), time);
     assert_eq!(chat.user(), "+xfix");
     assert_eq!(chat.message(), "Hello|world");

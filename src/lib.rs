@@ -256,7 +256,7 @@ struct Server {
     port: u16,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug)]
 pub struct RoomId<'a>(pub &'a str);
 
 impl RoomId<'_> {
