@@ -47,6 +47,12 @@ fn split2(arg: &str) -> (&str, &str) {
 
 #[derive(Debug)]
 #[non_exhaustive]
+/// Showdown message kind.
+///
+/// This structure was designed to be matched on. For performance
+/// reasons, it's borrowing string slices from `Message`, trying
+/// to use this structure when `Message` is not in scope will
+/// cause borrow checker failures.
 pub enum Kind<'a> {
     Text(Text<'a>),
     Challenge(Challenge<'a>),
