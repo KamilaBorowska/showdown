@@ -56,6 +56,10 @@ fn split2(arg: &str) -> (&str, &str) {
 pub enum Kind<'a> {
     /// Text from chat or PMs.
     Text(Text<'a>),
+
+    /// Login challenge.
+    ///
+    /// This can be used to authenticate.
     Challenge(Challenge<'a>),
     Html(&'a str),
     NoInit(NoInit<'a>),
