@@ -31,7 +31,7 @@ type SocketStream = WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>;
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use futures::prelude::*;
 /// use showdown::message::{Kind, UpdateUser};
 /// use showdown::{connect, Result, RoomId};
@@ -83,7 +83,7 @@ impl Sender {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
@@ -121,7 +121,7 @@ impl Sender {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, Result, RoomId};
@@ -179,7 +179,7 @@ impl Sender {
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use futures::prelude::*;
 /// use showdown::{connect, Result};
 ///
@@ -199,7 +199,7 @@ pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use futures::prelude::*;
 /// use showdown::{connect_to_url, fetch_server_url, Result};
 ///

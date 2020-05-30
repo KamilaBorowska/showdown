@@ -187,7 +187,7 @@ impl<'a> Challenge<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use futures::prelude::*;
     /// use rand::prelude::*;
     /// use showdown::message::{Kind, NoInit, NoInitKind};
