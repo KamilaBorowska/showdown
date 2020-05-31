@@ -12,7 +12,7 @@ pub mod message;
 use self::message::Message;
 pub use chrono;
 use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt, TryFutureExt};
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -223,13 +223,13 @@ pub async fn fetch_server_url(name: &str) -> Result<Url> {
     let url = if name == "showdown" {
         "wss://sim3.psim.us/showdown/websocket"
     } else {
-        let Server { host, port } = surf::get(&format!(
+        let Server { host, port } = reqwest::get(&format!(
             "https://pokemonshowdown.com/servers/{}.json",
             name
         ))
-        .recv_json()
+        .and_then(|r| r.json())
         .await
-        .map_err(|e| Error(ErrorInner::Surf(e)))?;
+        .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
         let protocol = if port == 443 { "wss" } else { "ws" };
         // Concatenation is fine, as it's also done by the official Showdown client
         owned_url = format!("{}://{}:{}/showdown/websocket", protocol, host, port);
@@ -278,7 +278,7 @@ impl Error {
 #[derive(Debug)]
 enum ErrorInner {
     WebSocket(WsError),
-    Surf(surf::Exception),
+    Reqwest(reqwest::Error),
     Url(url::ParseError),
     Json(serde_json::Error),
     UnrecognizedMessage(Option<OwnedMessage>),
@@ -288,7 +288,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
             ErrorInner::WebSocket(e) => e.fmt(f),
-            ErrorInner::Surf(e) => e.fmt(f),
+            ErrorInner::Reqwest(e) => e.fmt(f),
             ErrorInner::Url(e) => e.fmt(f),
             ErrorInner::Json(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
@@ -300,7 +300,7 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.0 {
             ErrorInner::WebSocket(e) => Some(e),
-            ErrorInner::Surf(e) => Some(&**e),
+            ErrorInner::Reqwest(e) => Some(e),
             ErrorInner::Url(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
             ErrorInner::UnrecognizedMessage(_) => None,

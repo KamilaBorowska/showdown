@@ -2,6 +2,7 @@ use crate::{Error, ErrorInner, Result, RoomId, Sender};
 use chrono::offset::Utc;
 use chrono::{DateTime, NaiveDateTime};
 use futures::TryFutureExt;
+use reqwest::Client;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -237,16 +238,17 @@ impl<'a> Challenge<'a> {
         sender: &'a mut Sender,
         login: &'a str,
     ) -> Result<Option<PasswordRequired<'a>>> {
-        let response = surf::post("http://play.pokemonshowdown.com/action.php")
-            .body_form(&[
+        let response = Client::new()
+            .post("http://play.pokemonshowdown.com/action.php")
+            .form(&[
                 ("act", "getassertion"),
                 ("userid", login),
                 ("challstr", self.0),
             ])
-            .expect("serializable authentication form")
-            .recv_string()
-            .map_err(|e| Error(ErrorInner::Surf(e)))
-            .await?;
+            .send()
+            .and_then(|r| r.text())
+            .await
+            .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
         if response == ";" {
             Ok(Some(PasswordRequired {
                 challstr: self,
@@ -270,17 +272,18 @@ impl<'a> Challenge<'a> {
         if password.is_empty() {
             return self.login(sender, login).await.map(|_| ());
         }
-        let response = surf::post("http://play.pokemonshowdown.com/action.php")
-            .body_form(&[
+        let response = Client::new()
+            .post("http://play.pokemonshowdown.com/action.php")
+            .form(&[
                 ("act", "login"),
                 ("name", login),
                 ("pass", password),
                 ("challstr", self.0),
             ])
-            .expect("serializable authentication form")
-            .recv_bytes()
+            .send()
+            .and_then(|r| r.bytes())
             .await
-            .map_err(|e| Error(ErrorInner::Surf(e)))?;
+            .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
         let LoginServerResponse { assertion } =
             serde_json::from_slice(&response[1..]).map_err(|e| Error(ErrorInner::Json(e)))?;
         sender
