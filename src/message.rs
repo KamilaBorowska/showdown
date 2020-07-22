@@ -17,8 +17,7 @@ pub struct Message {
 impl Message {
     pub fn kind(&self) -> Kind<'_> {
         let full_message: &str = &self.raw;
-        let (room, message) = if full_message.starts_with('>') {
-            let without_prefix = &full_message[1..];
+        let (room, message) = if let Some(without_prefix) = full_message.strip_prefix('>') {
             let index = without_prefix
                 .find('\n')
                 .unwrap_or_else(|| without_prefix.len());
@@ -29,8 +28,8 @@ impl Message {
         } else {
             ("", full_message)
         };
-        if message.starts_with('|') {
-            let (command, arg) = split2(&message[1..]);
+        if let Some(message) = message.strip_prefix('|') {
+            let (command, arg) = split2(message);
             Kind::parse(RoomId(room), command, arg)
                 .unwrap_or_else(|| Kind::Unrecognized(UnrecognizedMessage(full_message)))
         } else {
@@ -151,12 +150,7 @@ impl<'a> Chat<'a> {
     }
 
     pub fn message(&self) -> &'a str {
-        let message = self.message;
-        if message.ends_with('\n') {
-            &message[..message.len() - 1]
-        } else {
-            message
-        }
+        self.message.strip_suffix('\n').unwrap_or(&self.message)
     }
 
     pub fn room_id(&self) -> RoomId<'a> {
