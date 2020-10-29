@@ -144,6 +144,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct SendMessage(String);
 
 impl SendMessage {
