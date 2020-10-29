@@ -79,19 +79,73 @@ impl Sender {
         Self { sink }
     }
 
-    /// Sends a global command.
+    #[deprecated(
+        since = "0.7.5",
+        note = "Please use .send(SendMessage::global_command(...)) instead"
+    )]
+    pub async fn send_global_command(&mut self, command: impl Display) -> Result<()> {
+        self.send(SendMessage::global_command(command)).await
+    }
+
+    /// Sends a message in a chat room.
+    #[deprecated(
+        since = "0.7.5",
+        note = "Please use .send(SendMessage::chat_message(...)) instead"
+    )]
+    pub async fn send_chat_message(
+        &mut self,
+        room_id: RoomId<'_>,
+        message: impl Display,
+    ) -> Result<()> {
+        self.send(SendMessage::chat_message(room_id, message)).await
+    }
+
+    #[deprecated(
+        since = "0.7.5",
+        note = "Please use .send(SendMessage::chat_command(...)) instead"
+    )]
+    pub async fn send_chat_command(
+        &mut self,
+        room_id: RoomId<'_>,
+        command: impl Display,
+    ) -> Result<()> {
+        self.send(SendMessage::chat_command(room_id, command)).await
+    }
+
+    #[deprecated(
+        since = "0.7.5",
+        note = "Please use .send(SendMessage::broadcast_command(...)) instead"
+    )]
+    pub async fn broadcast_command(
+        &mut self,
+        room_id: RoomId<'_>,
+        command: impl Display,
+    ) -> Result<()> {
+        self.send(SendMessage::broadcast_command(room_id, command))
+            .await
+    }
+
+    pub async fn send(&mut self, message: SendMessage) -> Result<()> {
+        Error::from_ws(self.sink.send(OwnedMessage::Text(message.0)).await)
+    }
+}
+
+pub struct SendMessage(String);
+
+impl SendMessage {
+    /// Creates a global command.
     ///
     /// # Example
     ///
     /// ```no_run
     /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, Result, RoomId};
+    /// use showdown::{connect, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
     ///     let (mut sender, mut receiver) = connect("showdown").await?;
-    ///     sender.send_global_command("cmd rooms").await?;
+    ///     sender.send(SendMessage::global_command("cmd rooms")).await?;
     ///     loop {
     ///         let received = receiver.receive().await?;
     ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.kind() {
@@ -104,33 +158,24 @@ impl Sender {
     ///     }
     /// }
     /// ```
-    pub async fn send_global_command(&mut self, command: impl Display) -> Result<()> {
-        self.send(format!("|/{}", command)).await
+    pub fn global_command(command: impl Display) -> Self {
+        SendMessage(format!("|/{}", command))
     }
 
-    /// Sends a message in a chat room.
-    pub async fn send_chat_message(
-        &mut self,
-        room_id: RoomId<'_>,
-        message: impl Display,
-    ) -> Result<()> {
-        self.send_chat_prefixed(room_id, ' ', message).await
-    }
-
-    /// Sends a command in a chat room.
+    /// Creates a command that executes in a chat room.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// use futures::prelude::*;
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, Result, RoomId};
+    /// use showdown::{connect, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
     ///     let (mut sender, mut receiver) = connect("showdown").await?;
-    ///     sender.send_global_command("join lobby").await?;
-    ///     sender.send_chat_command(RoomId::LOBBY, "roomdesc").await;
+    ///     sender.send(SendMessage::global_command("join lobby")).await?;
+    ///     sender.send(SendMessage::chat_message(RoomId::LOBBY, "roomdesc")).await;
     ///     loop {
     ///         if let Kind::Html(html) = receiver.receive().await?.kind() {
     ///             assert!(html.contains("Relax here amidst the chaos."));
@@ -139,34 +184,21 @@ impl Sender {
     ///     }
     /// }
     /// ```
-    pub async fn send_chat_command(
-        &mut self,
-        room_id: RoomId<'_>,
-        command: impl Display,
-    ) -> Result<()> {
-        self.send_chat_prefixed(room_id, '/', command).await
+    pub fn chat_message(room_id: RoomId<'_>, message: impl Display) -> Self {
+        Self::prefixed(room_id, ' ', message)
     }
 
-    pub async fn broadcast_command(
-        &mut self,
-        room_id: RoomId<'_>,
-        command: impl Display,
-    ) -> Result<()> {
-        self.send_chat_prefixed(room_id, '!', command).await
+    /// Creates a chat room command message.
+    pub fn chat_command(room_id: RoomId<'_>, command: impl Display) -> Self {
+        Self::prefixed(room_id, '/', command)
     }
 
-    async fn send_chat_prefixed(
-        &mut self,
-        room_id: RoomId<'_>,
-        prefix: char,
-        message: impl Display,
-    ) -> Result<()> {
-        self.send(format!("{}|{}{}", room_id.0, prefix, message))
-            .await
+    pub fn broadcast_command(room_id: RoomId<'_>, command: impl Display) -> Self {
+        Self::prefixed(room_id, '!', command)
     }
 
-    async fn send(&mut self, message: String) -> Result<()> {
-        Error::from_ws(self.sink.send(OwnedMessage::Text(message)).await)
+    fn prefixed(room_id: RoomId<'_>, prefix: char, message: impl Display) -> Self {
+        SendMessage(format!("{}|{}{}", room_id.0, prefix, message))
     }
 }
 

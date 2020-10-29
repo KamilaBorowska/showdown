@@ -1,12 +1,14 @@
 use comparator::collections::BinaryHeap;
 use comparator::{comparing, Comparator};
 use showdown::message::{Kind, QueryResponse, Room};
-use showdown::{connect, Result};
+use showdown::{connect, Result, SendMessage};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let (mut sender, mut receiver) = connect("showdown").await?;
-    sender.send_global_command("cmd rooms").await?;
+    sender
+        .send(SendMessage::global_command("cmd rooms"))
+        .await?;
     loop {
         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = receiver.receive().await?.kind() {
             println!("Top 5 most popular rooms");

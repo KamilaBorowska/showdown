@@ -1,7 +1,7 @@
 use futures::{SinkExt, StreamExt};
 use showdown::chrono::{SubsecRound, Utc};
 use showdown::message::{Kind, QueryResponse, Room, Text};
-use showdown::{Receiver, RoomId, Sender};
+use showdown::{Receiver, RoomId, SendMessage, Sender};
 use std::borrow::Cow;
 use std::error::Error;
 use std::net::Ipv4Addr;
@@ -66,7 +66,9 @@ async fn reply_test() -> Result<(), Box<dyn Error>> {
 #[tokio::test]
 async fn test_global_command() -> Result<(), Box<dyn Error>> {
     let (mut socket, mut sender, _receiver) = mock_connection().await?;
-    sender.send_global_command("hey there").await?;
+    sender
+        .send(SendMessage::global_command("hey there"))
+        .await?;
     assert_eq!(
         socket.next().await.transpose()?,
         Some(Message::Text("|/hey there".into())),

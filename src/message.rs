@@ -1,4 +1,4 @@
-use crate::{Error, ErrorInner, Result, RoomId, Sender};
+use crate::{Error, ErrorInner, Result, RoomId, SendMessage, Sender};
 use chrono::offset::Utc;
 use chrono::{DateTime, NaiveDateTime};
 use futures::TryFutureExt;
@@ -94,10 +94,17 @@ pub enum Text<'a> {
 impl<'a> Text<'a> {
     pub async fn reply(&self, sender: &mut Sender, message: impl Display) -> Result<()> {
         match self {
-            Text::Chat(chat) => sender.send_chat_message(chat.room_id(), message).await,
+            Text::Chat(chat) => {
+                sender
+                    .send(SendMessage::chat_message(chat.room_id(), message))
+                    .await
+            }
             Text::Private(private) => {
                 sender
-                    .send_global_command(format_args!("pm {},{}", private.from, message))
+                    .send(SendMessage::global_command(format_args!(
+                        "pm {},{}",
+                        private.from, message
+                    )))
                     .await
             }
         }
@@ -251,7 +258,10 @@ impl<'a> Challenge<'a> {
             }))
         } else {
             sender
-                .send_global_command(format_args!("trn {},0,{}", login, response))
+                .send(SendMessage::global_command(format_args!(
+                    "trn {},0,{}",
+                    login, response
+                )))
                 .await
                 .map(|()| None)
         }
@@ -281,7 +291,10 @@ impl<'a> Challenge<'a> {
         let LoginServerResponse { assertion } =
             serde_json::from_slice(&response[1..]).map_err(|e| Error(ErrorInner::Json(e)))?;
         sender
-            .send_global_command(format_args!("trn {},0,{}", login, assertion))
+            .send(SendMessage::global_command(format_args!(
+                "trn {},0,{}",
+                login, assertion
+            )))
             .await
     }
 }
