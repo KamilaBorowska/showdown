@@ -11,35 +11,41 @@ pub mod message;
 
 use self::message::{Message, Text};
 pub use chrono;
-use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt, TryFutureExt};
+use extension_trait::extension_trait;
+pub use futures;
+use futures::Stream as _;
+use futures::{Sink, TryFutureExt};
+use pin_project::pin_project;
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
+use std::future::Future;
+use std::pin::Pin;
 use std::result::Result as StdResult;
+use std::task::{Context, Poll};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
-use tokio_tungstenite::stream::Stream;
+use tokio_tungstenite::stream::Stream as TungsteniteStream;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as OwnedMessage};
 use tokio_tungstenite::WebSocketStream;
 pub use url;
 use url::Url;
 
-type SocketStream = WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>;
+type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpStream>>>;
 
-/// Message receiver.
+/// Message stream.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use futures::prelude::*;
+/// use showdown::futures::SinkExt;
 /// use showdown::message::{Kind, UpdateUser};
-/// use showdown::{connect, Result, RoomId};
+/// use showdown::{connect, ReceiveExt, Result, RoomId};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
-///     let (_, mut receiver) = connect("showdown").await?;
-///     let message = receiver.receive().await?;
+///     let mut stream = connect("showdown").await?;
+///     let message = stream.receive().await?;
 ///     match message.kind() {
 ///         Kind::UpdateUser(UpdateUser {
 ///             username,
@@ -53,80 +59,88 @@ type SocketStream = WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>;
 ///     Ok(())
 /// }
 /// ```
-pub struct Receiver {
-    stream: SplitStream<SocketStream>,
+#[pin_project]
+pub struct Stream {
+    #[pin]
+    stream: SocketStream,
 }
 
-impl fmt::Debug for Receiver {
+impl fmt::Debug for Stream {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Receiver").finish()
+        f.debug_struct("Stream").finish()
     }
 }
 
-/// Message sender.
-pub struct Sender {
-    sink: SplitSink<SocketStream, OwnedMessage>,
-}
+// Error::from_ws(self.sink.send(OwnedMessage::Text(message.0)).await)
 
-impl fmt::Debug for Sender {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Sender").finish()
+impl Sink<SendMessage> for Stream {
+    type Error = Error;
+
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.project().stream.poll_ready(cx).map(Error::from_ws)
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: SendMessage) -> Result<()> {
+        Error::from_ws(self.project().stream.start_send(OwnedMessage::Text(item.0)))
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.project().stream.poll_flush(cx).map(Error::from_ws)
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.project().stream.poll_close(cx).map(Error::from_ws)
     }
 }
 
-impl Sender {
-    fn new(sink: SplitSink<SocketStream, OwnedMessage>) -> Sender {
-        Self { sink }
+impl futures::Stream for Stream {
+    type Item = Result<Message>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.project().stream.poll_next(cx).map(|opt| {
+            opt.map(|e| {
+                let message = Error::from_ws(e)?;
+                if let OwnedMessage::Text(raw) = message {
+                    Ok(Message { raw })
+                } else {
+                    Err(Error(ErrorInner::UnrecognizedMessage(message)))
+                }
+            })
+        })
     }
 
-    #[deprecated(
-        since = "0.7.5",
-        note = "Please use .send(SendMessage::global_command(...)) instead"
-    )]
-    pub async fn send_global_command(&mut self, command: impl Display) -> Result<()> {
-        self.send(SendMessage::global_command(command)).await
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.stream.size_hint()
     }
+}
 
-    /// Sends a message in a chat room.
-    #[deprecated(
-        since = "0.7.5",
-        note = "Please use .send(SendMessage::chat_message(...)) instead"
-    )]
-    pub async fn send_chat_message(
-        &mut self,
-        room_id: RoomId<'_>,
-        message: impl Display,
-    ) -> Result<()> {
-        self.send(SendMessage::chat_message(room_id, message)).await
+#[extension_trait(pub)]
+impl<St> ReceiveExt for St
+where
+    St: futures::Stream<Item = Result<Message>> + Unpin,
+{
+    fn receive(&mut self) -> Receive<'_, Self> {
+        Receive { stream: self }
     }
+}
 
-    #[deprecated(
-        since = "0.7.5",
-        note = "Please use .send(SendMessage::chat_command(...)) instead"
-    )]
-    pub async fn send_chat_command(
-        &mut self,
-        room_id: RoomId<'_>,
-        command: impl Display,
-    ) -> Result<()> {
-        self.send(SendMessage::chat_command(room_id, command)).await
-    }
+pub struct Receive<'a, St>
+where
+    St: ?Sized,
+{
+    stream: &'a mut St,
+}
 
-    #[deprecated(
-        since = "0.7.5",
-        note = "Please use .send(SendMessage::broadcast_command(...)) instead"
-    )]
-    pub async fn broadcast_command(
-        &mut self,
-        room_id: RoomId<'_>,
-        command: impl Display,
-    ) -> Result<()> {
-        self.send(SendMessage::broadcast_command(room_id, command))
-            .await
-    }
+impl<St> Future for Receive<'_, St>
+where
+    St: futures::Stream<Item = Result<Message>> + Unpin,
+{
+    type Output = Result<Message>;
 
-    pub async fn send(&mut self, message: SendMessage) -> Result<()> {
-        Error::from_ws(self.sink.send(OwnedMessage::Text(message.0)).await)
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Message>> {
+        Pin::new(&mut self.stream)
+            .poll_next(cx)
+            .map(|opt| opt.unwrap_or_else(|| Err(Error(ErrorInner::Disconnected))))
     }
 }
 
@@ -138,16 +152,16 @@ impl SendMessage {
     /// # Example
     ///
     /// ```no_run
-    /// use futures::prelude::*;
+    /// use showdown::futures::SinkExt;
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, Result, RoomId, SendMessage};
+    /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
-    ///     let (mut sender, mut receiver) = connect("showdown").await?;
-    ///     sender.send(SendMessage::global_command("cmd rooms")).await?;
+    ///     let mut stream = connect("showdown").await?;
+    ///     stream.send(SendMessage::global_command("cmd rooms")).await?;
     ///     loop {
-    ///         let received = receiver.receive().await?;
+    ///         let received = stream.receive().await?;
     ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.kind() {
     ///             assert!(rooms
     ///                 .official
@@ -167,17 +181,17 @@ impl SendMessage {
     /// # Examples
     ///
     /// ```no_run
-    /// use futures::prelude::*;
+    /// use showdown::futures::SinkExt;
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, Result, RoomId, SendMessage};
+    /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
-    ///     let (mut sender, mut receiver) = connect("showdown").await?;
-    ///     sender.send(SendMessage::global_command("join lobby")).await?;
-    ///     sender.send(SendMessage::chat_message(RoomId::LOBBY, "roomdesc")).await;
+    ///     let mut stream = connect("showdown").await?;
+    ///     stream.send(SendMessage::global_command("join lobby")).await?;
+    ///     stream.send(SendMessage::chat_message(RoomId::LOBBY, "roomdesc")).await;
     ///     loop {
-    ///         if let Kind::Html(html) = receiver.receive().await?.kind() {
+    ///         if let Kind::Html(html) = stream.receive().await?.kind() {
     ///             assert!(html.contains("Relax here amidst the chaos."));
     ///             return Ok(());
     ///         }
@@ -221,7 +235,6 @@ impl SendMessage {
 /// # Examples
 ///
 /// ```no_run
-/// use futures::prelude::*;
 /// use showdown::{connect, Result};
 ///
 /// #[tokio::main]
@@ -230,7 +243,7 @@ impl SendMessage {
 ///     assert!(connect("fakestofservers").await.is_err());
 /// }
 /// ```
-pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
+pub async fn connect(name: &str) -> Result<Stream> {
     connect_to_url(&fetch_server_url(name).await?).await
 }
 
@@ -241,7 +254,6 @@ pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
 /// # Examples
 ///
 /// ```no_run
-/// use futures::prelude::*;
 /// use showdown::{connect_to_url, fetch_server_url, Result};
 ///
 /// #[tokio::main]
@@ -252,11 +264,9 @@ pub async fn connect(name: &str) -> Result<(Sender, Receiver)> {
 ///     Ok(())
 /// }
 /// ```
-pub async fn connect_to_url(url: &Url) -> Result<(Sender, Receiver)> {
-    let (sink, stream) = Error::from_ws(tokio_tungstenite::connect_async(url).await)?
-        .0
-        .split();
-    Ok((Sender::new(sink), Receiver { stream }))
+pub async fn connect_to_url(url: &Url) -> Result<Stream> {
+    let stream = Error::from_ws(tokio_tungstenite::connect_async(url).await)?.0;
+    Ok(Stream { stream })
 }
 
 pub async fn fetch_server_url(name: &str) -> Result<Url> {
@@ -277,18 +287,6 @@ pub async fn fetch_server_url(name: &str) -> Result<Url> {
         &owned_url
     };
     Url::parse(url).map_err(|e| Error(ErrorInner::Url(e)))
-}
-
-impl Receiver {
-    pub async fn receive(&mut self) -> Result<Message> {
-        let e = self.stream.next().await;
-        let message = Error::from_ws(e.transpose())?;
-        if let Some(OwnedMessage::Text(raw)) = message {
-            Ok(Message { raw })
-        } else {
-            Err(Error(ErrorInner::UnrecognizedMessage(message)))
-        }
-    }
 }
 
 #[derive(Deserialize)]
@@ -322,7 +320,8 @@ enum ErrorInner {
     Reqwest(reqwest::Error),
     Url(url::ParseError),
     Json(serde_json::Error),
-    UnrecognizedMessage(Option<OwnedMessage>),
+    UnrecognizedMessage(OwnedMessage),
+    Disconnected,
 }
 
 impl Display for Error {
@@ -333,6 +332,7 @@ impl Display for Error {
             ErrorInner::Url(e) => e.fmt(f),
             ErrorInner::Json(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
+            ErrorInner::Disconnected => write!(f, "Disconnected"),
         }
     }
 }
@@ -344,7 +344,7 @@ impl StdError for Error {
             ErrorInner::Reqwest(e) => Some(e),
             ErrorInner::Url(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
-            ErrorInner::UnrecognizedMessage(_) => None,
+            ErrorInner::UnrecognizedMessage(_) | ErrorInner::Disconnected => None,
         }
     }
 }
