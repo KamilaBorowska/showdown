@@ -197,12 +197,12 @@ impl<'a> Challenge<'a> {
     /// use futures::prelude::*;
     /// use rand::prelude::*;
     /// use showdown::message::{Kind, NoInit, NoInitKind};
-    /// use showdown::{connect, Result, RoomId};
+    /// use showdown::{connect, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
     ///     let (mut sender, mut receiver) = connect("showdown").await?;
-    ///     sender.send_global_command("join bot dev").await?;
+    ///     sender.send(SendMessage::global_command("join bot dev")).await?;
     ///     let mut received;
     ///     // Get the challenge first
     ///     let challenge = loop {
@@ -223,7 +223,7 @@ impl<'a> Challenge<'a> {
     ///     }
     ///     let name = random_username();
     ///     challenge.login(&mut sender, &name).await?;
-    ///     sender.send_global_command("join bot dev").await?;
+    ///     sender.send(SendMessage::global_command("join bot dev")).await?;
     ///     loop {
     ///         if let Kind::RoomInit(_) = receiver.receive().await?.kind() {
     ///             return Ok(());
