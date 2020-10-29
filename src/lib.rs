@@ -18,7 +18,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::result::Result as StdResult;
 use tokio::net::TcpStream;
-use tokio_tls::TlsStream;
+use tokio_native_tls::TlsStream;
 use tokio_tungstenite::stream::Stream;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as OwnedMessage};
 use tokio_tungstenite::WebSocketStream;
