@@ -92,6 +92,10 @@ pub enum Text<'a> {
 }
 
 impl<'a> Text<'a> {
+    #[deprecated(
+        since = "0.7.5",
+        note = "Please use sender.send(SendMessage::reply(text, message))"
+    )]
     pub async fn reply(&self, sender: &mut Sender, message: impl Display) -> Result<()> {
         match self {
             Text::Chat(chat) => {

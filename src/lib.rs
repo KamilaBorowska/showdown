@@ -9,7 +9,7 @@
 
 pub mod message;
 
-use self::message::Message;
+use self::message::{Message, Text};
 pub use chrono;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt, TryFutureExt};
@@ -195,6 +195,15 @@ impl SendMessage {
 
     pub fn broadcast_command(room_id: RoomId<'_>, command: impl Display) -> Self {
         Self::prefixed(room_id, '!', command)
+    }
+
+    pub fn reply(text: Text, message: impl Display) -> Self {
+        match text {
+            Text::Chat(chat) => Self::chat_message(chat.room_id(), message),
+            Text::Private(private) => {
+                Self::global_command(format_args!("pm {},{}", private.from, message))
+            }
+        }
     }
 
     fn prefixed(room_id: RoomId<'_>, prefix: char, message: impl Display) -> Self {

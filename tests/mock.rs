@@ -55,7 +55,7 @@ async fn reply_test() -> Result<(), Box<dyn Error>> {
         Kind::Text(text) => text,
         _ => unreachable!(),
     };
-    text.reply(&mut sender, "Hi there").await?;
+    sender.send(SendMessage::reply(text, "Hi there")).await?;
     assert_eq!(
         socket.next().await.transpose()?,
         Some(Message::Text("| Hi there".into())),

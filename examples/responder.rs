@@ -17,11 +17,12 @@ async fn start(login: String, password: String) -> Result<()> {
                     .await?
             }
             Kind::Text(text) if text.message() == ".yay" => {
-                text.reply(
-                    &mut sender,
-                    format_args!("YAY {}!", text.user().to_uppercase()),
-                )
-                .await?;
+                sender
+                    .send(SendMessage::reply(
+                        text,
+                        format_args!("YAY {}!", text.user().to_uppercase()),
+                    ))
+                    .await?;
             }
             _ => {}
         }
