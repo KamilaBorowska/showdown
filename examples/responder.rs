@@ -1,5 +1,5 @@
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect, Result};
+use showdown::{connect, Result, SendMessage};
 use std::env;
 
 async fn start(login: String, password: String) -> Result<()> {
@@ -12,7 +12,9 @@ async fn start(login: String, password: String) -> Result<()> {
                     .await?
             }
             Kind::UpdateUser(UpdateUser { named: true, .. }) => {
-                sender.send_global_command("join bot dev").await?
+                sender
+                    .send(SendMessage::global_command("join bot dev"))
+                    .await?
             }
             Kind::Text(text) if text.message() == ".yay" => {
                 text.reply(
