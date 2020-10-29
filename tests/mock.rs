@@ -1,7 +1,7 @@
 use futures::{SinkExt, StreamExt};
 use showdown::chrono::{SubsecRound, Utc};
 use showdown::message::{Kind, QueryResponse, Room, Text};
-use showdown::{Receiver, RoomId, SendMessage, Sender};
+use showdown::{ReceiveExt, RoomId, SendMessage, Stream};
 use std::borrow::Cow;
 use std::error::Error;
 use std::net::Ipv4Addr;
@@ -9,22 +9,20 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 
-async fn mock_connection() -> Result<(WebSocketStream<TcpStream>, Sender, Receiver), Box<dyn Error>>
-{
+async fn mock_connection() -> Result<(WebSocketStream<TcpStream>, Stream), Box<dyn Error>> {
     let mut listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     let uri = format!("ws://127.0.0.1:{}", port).parse()?;
-    let (socket, result) = tokio::join!(
+    let (socket, stream) = tokio::join!(
         async move { tokio_tungstenite::accept_async(listener.accept().await?.0).await },
         showdown::connect_to_url(&uri),
     );
-    let (sender, receiver) = result?;
-    Ok((socket?, sender, receiver))
+    Ok((socket?, stream?))
 }
 
 #[tokio::test]
 async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
-    let (mut socket, _sender, mut receiver) = mock_connection().await?;
+    let (mut socket, mut stream) = mock_connection().await?;
     let time = Utc::now().trunc_subsecs(0);
     socket
         .send(Message::Text(format!(
@@ -32,7 +30,7 @@ async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
             time.timestamp()
         )))
         .await?;
-    let message = receiver.receive().await?;
+    let message = stream.receive().await?;
     let chat = match message.kind() {
         Kind::Text(Text::Chat(chat)) => chat,
         _ => unreachable!(),
@@ -46,16 +44,16 @@ async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn reply_test() -> Result<(), Box<dyn Error>> {
-    let (mut socket, mut sender, mut receiver) = mock_connection().await?;
+    let (mut socket, mut stream) = mock_connection().await?;
     socket
         .send(Message::Text("|c:|0|+xfix|Hi there".into()))
         .await?;
-    let message = receiver.receive().await?;
+    let message = stream.receive().await?;
     let text = match message.kind() {
         Kind::Text(text) => text,
         _ => unreachable!(),
     };
-    sender.send(SendMessage::reply(text, "Hi there")).await?;
+    stream.send(SendMessage::reply(text, "Hi there")).await?;
     assert_eq!(
         socket.next().await.transpose()?,
         Some(Message::Text("| Hi there".into())),
@@ -65,8 +63,8 @@ async fn reply_test() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn test_global_command() -> Result<(), Box<dyn Error>> {
-    let (mut socket, mut sender, _receiver) = mock_connection().await?;
-    sender
+    let (mut socket, mut stream) = mock_connection().await?;
+    stream
         .send(SendMessage::global_command("hey there"))
         .await?;
     assert_eq!(
@@ -78,7 +76,7 @@ async fn test_global_command() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn parsing_roomlist() -> Result<(), Box<dyn Error>> {
-    let (mut socket, _sender, mut receiver) = mock_connection().await?;
+    let (mut socket, mut stream) = mock_connection().await?;
     socket
         .send(Message::Text(
             r#"|queryresponse|rooms|{
@@ -103,7 +101,7 @@ async fn parsing_roomlist() -> Result<(), Box<dyn Error>> {
             .into(),
         ))
         .await?;
-    match receiver.receive().await?.kind() {
+    match stream.receive().await?.kind() {
         Kind::QueryResponse(QueryResponse::Rooms(rooms_list)) => {
             let mut iter = rooms_list.iter();
             match iter.next() {

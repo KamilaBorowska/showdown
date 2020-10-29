@@ -1,11 +1,10 @@
-use crate::{Error, ErrorInner, Result, RoomId, SendMessage, Sender};
+use crate::{Error, ErrorInner, Result, RoomId, SendMessage, Stream};
 use chrono::offset::Utc;
 use chrono::{DateTime, NaiveDateTime};
-use futures::TryFutureExt;
+use futures::{SinkExt, TryFutureExt};
 use reqwest::Client;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
-use std::fmt::Display;
 use std::str;
 
 /// Owned message type
@@ -92,28 +91,6 @@ pub enum Text<'a> {
 }
 
 impl<'a> Text<'a> {
-    #[deprecated(
-        since = "0.7.5",
-        note = "Please use sender.send(SendMessage::reply(text, message))"
-    )]
-    pub async fn reply(&self, sender: &mut Sender, message: impl Display) -> Result<()> {
-        match self {
-            Text::Chat(chat) => {
-                sender
-                    .send(SendMessage::chat_message(chat.room_id(), message))
-                    .await
-            }
-            Text::Private(private) => {
-                sender
-                    .send(SendMessage::global_command(format_args!(
-                        "pm {},{}",
-                        private.from, message
-                    )))
-                    .await
-            }
-        }
-    }
-
     pub fn message(&self) -> &'a str {
         match self {
             Text::Chat(chat) => chat.message(),
@@ -194,19 +171,19 @@ impl<'a> Challenge<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use futures::prelude::*;
     /// use rand::prelude::*;
+    /// use showdown::futures::SinkExt;
     /// use showdown::message::{Kind, NoInit, NoInitKind};
-    /// use showdown::{connect, Result, RoomId, SendMessage};
+    /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
-    ///     let (mut sender, mut receiver) = connect("showdown").await?;
-    ///     sender.send(SendMessage::global_command("join bot dev")).await?;
+    ///     let mut stream = connect("showdown").await?;
+    ///     stream.send(SendMessage::global_command("join bot dev")).await?;
     ///     let mut received;
     ///     // Get the challenge first
     ///     let challenge = loop {
-    ///         received = receiver.receive().await?;
+    ///         received = stream.receive().await?;
     ///         if let Kind::Challenge(ch) = received.kind() {
     ///             break ch;
     ///         }
@@ -216,16 +193,16 @@ impl<'a> Challenge<'a> {
     ///         if let Kind::NoInit(NoInit {
     ///             kind: NoInitKind::NameRequired,
     ///             ..
-    ///         }) = receiver.receive().await?.kind()
+    ///         }) = stream.receive().await?.kind()
     ///         {
     ///             break;
     ///         }
     ///     }
     ///     let name = random_username();
-    ///     challenge.login(&mut sender, &name).await?;
-    ///     sender.send(SendMessage::global_command("join bot dev")).await?;
+    ///     challenge.login(&mut stream, &name).await?;
+    ///     stream.send(SendMessage::global_command("join bot dev")).await?;
     ///     loop {
-    ///         if let Kind::RoomInit(_) = receiver.receive().await?.kind() {
+    ///         if let Kind::RoomInit(_) = stream.receive().await?.kind() {
     ///             return Ok(());
     ///         }
     ///     }
@@ -240,7 +217,7 @@ impl<'a> Challenge<'a> {
     /// ```
     pub async fn login(
         self,
-        sender: &'a mut Sender,
+        stream: &'a mut Stream,
         login: &'a str,
     ) -> Result<Option<PasswordRequired<'a>>> {
         let response = Client::new()
@@ -258,10 +235,10 @@ impl<'a> Challenge<'a> {
             Ok(Some(PasswordRequired {
                 challstr: self,
                 login,
-                sender,
+                stream,
             }))
         } else {
-            sender
+            stream
                 .send(SendMessage::global_command(format_args!(
                     "trn {},0,{}",
                     login, response
@@ -273,7 +250,7 @@ impl<'a> Challenge<'a> {
 
     pub async fn login_with_password(
         self,
-        sender: &mut Sender,
+        sender: &mut Stream,
         login: &str,
         password: &str,
     ) -> Result<()> {
@@ -306,13 +283,13 @@ impl<'a> Challenge<'a> {
 pub struct PasswordRequired<'a> {
     challstr: Challenge<'a>,
     login: &'a str,
-    sender: &'a mut Sender,
+    stream: &'a mut Stream,
 }
 
 impl PasswordRequired<'_> {
     pub async fn login_with_password(&mut self, password: &str) -> Result<()> {
         self.challstr
-            .login_with_password(self.sender, self.login, password)
+            .login_with_password(self.stream, self.login, password)
             .await
     }
 }

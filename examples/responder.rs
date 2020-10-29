@@ -1,23 +1,24 @@
+use showdown::futures::SinkExt;
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect, Result, SendMessage};
+use showdown::{connect, ReceiveExt, Result, SendMessage};
 use std::env;
 
 async fn start(login: String, password: String) -> Result<()> {
-    let (mut sender, mut receiver) = connect("showdown").await?;
+    let mut stream = connect("showdown").await?;
     loop {
-        let message = receiver.receive().await?;
+        let message = stream.receive().await?;
         match message.kind() {
             Kind::Challenge(ch) => {
-                ch.login_with_password(&mut sender, &login, &password)
+                ch.login_with_password(&mut stream, &login, &password)
                     .await?
             }
             Kind::UpdateUser(UpdateUser { named: true, .. }) => {
-                sender
+                stream
                     .send(SendMessage::global_command("join bot dev"))
                     .await?
             }
             Kind::Text(text) if text.message() == ".yay" => {
-                sender
+                stream
                     .send(SendMessage::reply(
                         text,
                         format_args!("YAY {}!", text.user().to_uppercase()),
