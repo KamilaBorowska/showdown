@@ -15,7 +15,6 @@ use extension_trait::extension_trait;
 pub use futures;
 use futures::Stream as _;
 use futures::{Sink, TryFutureExt};
-use pin_project::pin_project;
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -59,9 +58,7 @@ type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpSt
 ///     Ok(())
 /// }
 /// ```
-#[pin_project]
 pub struct Stream {
-    #[pin]
     stream: SocketStream,
 }
 
@@ -76,28 +73,34 @@ impl fmt::Debug for Stream {
 impl Sink<SendMessage> for Stream {
     type Error = Error;
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.project().stream.poll_ready(cx).map(Error::from_ws)
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream)
+            .poll_ready(cx)
+            .map(Error::from_ws)
     }
 
-    fn start_send(self: Pin<&mut Self>, item: SendMessage) -> Result<()> {
-        Error::from_ws(self.project().stream.start_send(OwnedMessage::Text(item.0)))
+    fn start_send(mut self: Pin<&mut Self>, item: SendMessage) -> Result<()> {
+        Error::from_ws(Pin::new(&mut self.stream).start_send(OwnedMessage::Text(item.0)))
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.project().stream.poll_flush(cx).map(Error::from_ws)
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream)
+            .poll_flush(cx)
+            .map(Error::from_ws)
     }
 
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-        self.project().stream.poll_close(cx).map(Error::from_ws)
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream)
+            .poll_close(cx)
+            .map(Error::from_ws)
     }
 }
 
 impl futures::Stream for Stream {
     type Item = Result<Message>;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.project().stream.poll_next(cx).map(|opt| {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.stream).poll_next(cx).map(|opt| {
             opt.map(|e| {
                 let message = Error::from_ws(e)?;
                 if let OwnedMessage::Text(raw) = message {
