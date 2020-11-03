@@ -68,8 +68,6 @@ impl fmt::Debug for Stream {
     }
 }
 
-// Error::from_ws(self.sink.send(OwnedMessage::Text(message.0)).await)
-
 impl Sink<SendMessage> for Stream {
     type Error = Error;
 
