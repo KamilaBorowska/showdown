@@ -12,9 +12,9 @@ pub mod message;
 use self::message::{Message, Text};
 pub use chrono;
 use extension_trait::extension_trait;
-pub use futures;
-use futures::Stream as _;
-use futures::{Sink, TryFutureExt};
+use futures_util::future::TryFutureExt;
+use futures_util::sink::Sink;
+use futures_util::stream::Stream as FuturesStream;
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -37,7 +37,7 @@ type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpSt
 /// # Examples
 ///
 /// ```no_run
-/// use showdown::futures::SinkExt;
+/// use futures::SinkExt;
 /// use showdown::message::{Kind, UpdateUser};
 /// use showdown::{connect, ReceiveExt, Result, RoomId};
 ///
@@ -94,7 +94,7 @@ impl Sink<SendMessage> for Stream {
     }
 }
 
-impl futures::Stream for Stream {
+impl FuturesStream for Stream {
     type Item = Result<Message>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -118,7 +118,7 @@ impl futures::Stream for Stream {
 #[extension_trait(pub)]
 impl<St> ReceiveExt for St
 where
-    St: futures::Stream<Item = Result<Message>> + Unpin,
+    St: FuturesStream<Item = Result<Message>> + Unpin,
 {
     fn receive(&mut self) -> Receive<'_, Self> {
         Receive { stream: self }
@@ -134,7 +134,7 @@ where
 
 impl<St> Future for Receive<'_, St>
 where
-    St: futures::Stream<Item = Result<Message>> + Unpin,
+    St: FuturesStream<Item = Result<Message>> + Unpin,
 {
     type Output = Result<Message>;
 
@@ -154,7 +154,7 @@ impl SendMessage {
     /// # Example
     ///
     /// ```no_run
-    /// use showdown::futures::SinkExt;
+    /// use futures::SinkExt;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///
@@ -183,7 +183,7 @@ impl SendMessage {
     /// # Examples
     ///
     /// ```no_run
-    /// use showdown::futures::SinkExt;
+    /// use futures::SinkExt;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///

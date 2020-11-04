@@ -1,7 +1,8 @@
 use crate::{Error, ErrorInner, Result, RoomId, SendMessage, Stream};
 use chrono::offset::Utc;
 use chrono::{DateTime, NaiveDateTime};
-use futures::{SinkExt, TryFutureExt};
+use futures_util::future::TryFutureExt;
+use futures_util::sink::SinkExt;
 use reqwest::Client;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
@@ -172,7 +173,7 @@ impl<'a> Challenge<'a> {
     ///
     /// ```no_run
     /// use rand::prelude::*;
-    /// use showdown::futures::SinkExt;
+    /// use futures::SinkExt;
     /// use showdown::message::{Kind, NoInit, NoInitKind};
     /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///

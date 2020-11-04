@@ -1,4 +1,4 @@
-use showdown::futures::SinkExt;
+use futures::SinkExt;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect, ReceiveExt, Result, SendMessage};
 use std::env;
