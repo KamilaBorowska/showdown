@@ -5,7 +5,7 @@ image: rust:1.45
 
 test:
   script:
-  - cargo test --verbose
+  - cargo test --all-features --verbose
 
 clippy:
   script:

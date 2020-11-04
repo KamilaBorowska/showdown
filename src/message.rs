@@ -1,6 +1,6 @@
 use crate::{Error, ErrorInner, Result, RoomId, SendMessage, Stream};
-use chrono::offset::Utc;
-use chrono::{DateTime, NaiveDateTime};
+#[cfg(feature = "chrono")]
+use chrono::{offset::Utc, DateTime, NaiveDateTime};
 use futures_util::future::TryFutureExt;
 use futures_util::sink::SinkExt;
 use reqwest::Client;
@@ -127,6 +127,8 @@ impl<'a> Chat<'a> {
         }
     }
 
+    #[cfg(feature = "chrono")]
+    /// Provides chat message timestamp, requires chrono feature.
     pub fn timestamp(&self) -> DateTime<Utc> {
         DateTime::from_utc(
             NaiveDateTime::from_timestamp(self.timestamp.parse().unwrap(), 0),

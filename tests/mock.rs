@@ -1,5 +1,5 @@
 use futures::{SinkExt, StreamExt};
-use showdown::chrono::{SubsecRound, Utc};
+use chrono::{SubsecRound, Utc};
 use showdown::message::{Kind, QueryResponse, Room, Text};
 use showdown::{ReceiveExt, RoomId, SendMessage, Stream};
 use std::borrow::Cow;
@@ -36,6 +36,7 @@ async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
         _ => unreachable!(),
     };
     assert_eq!(chat.room_id().0, RoomId::LOBBY.0);
+    #[cfg(feature = "chrono")]
     assert_eq!(chat.timestamp(), time);
     assert_eq!(chat.user(), "+xfix");
     assert_eq!(chat.message(), "Hello|world");

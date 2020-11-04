@@ -10,6 +10,7 @@
 pub mod message;
 
 use self::message::{Message, Text};
+#[cfg(feature = "chrono")]
 pub use chrono;
 use extension_trait::extension_trait;
 use futures_util::future::TryFutureExt;
