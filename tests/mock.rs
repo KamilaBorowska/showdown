@@ -1,5 +1,5 @@
-use futures::{SinkExt, StreamExt};
 use chrono::{SubsecRound, Utc};
+use futures::{SinkExt, StreamExt};
 use showdown::message::{Kind, QueryResponse, Room, Text};
 use showdown::{ReceiveExt, RoomId, SendMessage, Stream};
 use std::borrow::Cow;
