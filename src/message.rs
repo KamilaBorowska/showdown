@@ -31,7 +31,7 @@ impl Message {
         if let Some(message) = message.strip_prefix('|') {
             let (command, arg) = split2(message);
             Kind::parse(RoomId(room), command, arg)
-                .unwrap_or_else(|| Kind::Unrecognized(UnrecognizedMessage(full_message)))
+                .unwrap_or(Kind::Unrecognized(UnrecognizedMessage(full_message)))
         } else {
             Kind::Unrecognized(UnrecognizedMessage(full_message))
         }

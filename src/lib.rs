@@ -142,7 +142,7 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Message>> {
         Pin::new(&mut self.stream)
             .poll_next(cx)
-            .map(|opt| opt.unwrap_or_else(|| Err(Error(ErrorInner::Disconnected))))
+            .map(|opt| opt.unwrap_or(Err(Error(ErrorInner::Disconnected))))
     }
 }
 
