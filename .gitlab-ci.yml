@@ -5,7 +5,13 @@ image: rust:1.45
 
 test:
   script:
-  - cargo test --all-features --verbose
+  - &test cargo test --all-features --verbose
+
+test-minimal:
+  image: rustlang/rust:nightly
+  script:
+  - cargo update -Z minimal-versions
+  - *test
 
 clippy:
   script:
