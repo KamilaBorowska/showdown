@@ -18,13 +18,8 @@ impl Message {
     pub fn kind(&self) -> Kind<'_> {
         let full_message: &str = &self.raw;
         let (room, message) = if let Some(without_prefix) = full_message.strip_prefix('>') {
-            let index = without_prefix
-                .find('\n')
-                .unwrap_or_else(|| without_prefix.len());
-            (
-                &without_prefix[..index],
-                without_prefix.get(index + 1..).unwrap_or(""),
-            )
+            let mut parts = without_prefix.splitn(2, '\n');
+            (parts.next().unwrap(), parts.next().unwrap_or(""))
         } else {
             ("", full_message)
         };
@@ -39,10 +34,8 @@ impl Message {
 }
 
 fn split2(arg: &str) -> (&str, &str) {
-    match arg.find('|') {
-        Some(index) => (&arg[..index], &arg[index + 1..]),
-        None => (arg, ""),
-    }
+    let mut parts = arg.splitn(2, '|');
+    (parts.next().unwrap(), parts.next().unwrap_or(""))
 }
 
 #[derive(Debug)]
@@ -449,10 +442,7 @@ impl<'a> UpdateUser<'a> {
             "1" => true,
             _ => return None,
         };
-        let mut avatar = parts.next()?;
-        if let Some(index) = avatar.find('\n') {
-            avatar = &avatar[..index];
-        }
+        let avatar = parts.next()?.split('\n').next().unwrap();
         Some(Self {
             username,
             named,
