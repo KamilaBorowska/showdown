@@ -146,7 +146,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SendMessage(String);
 
 impl SendMessage {
