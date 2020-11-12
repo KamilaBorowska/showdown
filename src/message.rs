@@ -234,13 +234,8 @@ impl<'a> Challenge<'a> {
                 stream,
             }))
         } else {
-            stream
-                .send(SendMessage::global_command(format_args!(
-                    "trn {},0,{}",
-                    login, response
-                )))
-                .await
-                .map(|()| None)
+            let command = SendMessage::global_command(format_args!("trn {},0,{}", login, response));
+            stream.send(command).await.map(|()| None)
         }
     }
 
@@ -267,12 +262,8 @@ impl<'a> Challenge<'a> {
             .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
         let LoginServerResponse { assertion } =
             serde_json::from_slice(&response[1..]).map_err(|e| Error(ErrorInner::Json(e)))?;
-        sender
-            .send(SendMessage::global_command(format_args!(
-                "trn {},0,{}",
-                login, assertion
-            )))
-            .await
+        let command = SendMessage::global_command(format_args!("trn {},0,{}", login, assertion));
+        sender.send(command).await
     }
 }
 
