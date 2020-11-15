@@ -56,6 +56,9 @@ fn split2(arg: &str) -> (&str, &str) {
 pub enum Kind<'a> {
     Chat(Chat<'a>),
     Private(Private<'a>),
+    Join(&'a str),
+    NicknameChange(&'a str, &'a str),
+    Leave(&'a str),
     /// Login challenge.
     ///
     /// This can be used to authenticate.
@@ -73,6 +76,12 @@ impl Kind<'_> {
         Some(match command {
             "c:" => Kind::Chat(Chat::parse(arguments)),
             "pm" => Kind::Private(Private::parse(arguments)),
+            "J" => Kind::Join(arguments),
+            "N" => {
+                let (a, b) = split2(arguments);
+                Kind::NicknameChange(a, b)
+            }
+            "L" => Kind::Leave(arguments),
             "challstr" => Kind::Challenge(Challenge(arguments)),
             "html" => Kind::Html(arguments),
             "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
@@ -422,3 +431,41 @@ impl<'a> UpdateUser<'a> {
 
 #[derive(Debug)]
 pub struct UnrecognizedMessage<'a>(&'a str);
+
+#[cfg(test)]
+mod test {
+    use super::{Kind, Message};
+
+    #[test]
+    fn parse_join() {
+        assert!(matches!(
+            Message {
+                raw: "|J|+xfix".into()
+            }
+            .kind(),
+            Kind::Join("+xfix")
+        ));
+    }
+
+    #[test]
+    fn parse_nickname_change() {
+        assert!(matches!(
+            Message {
+                raw: "|N|+xfix|@xfix".into()
+            }
+            .kind(),
+            Kind::NicknameChange("+xfix", "@xfix")
+        ));
+    }
+
+    #[test]
+    fn parse_leave() {
+        assert!(matches!(
+            Message {
+                raw: "|L|+xfix".into()
+            }
+            .kind(),
+            Kind::Leave("+xfix")
+        ));
+    }
+}
