@@ -17,10 +17,10 @@ async fn start(login: String, password: String) -> Result<()> {
                     .send(SendMessage::global_command("join bot dev"))
                     .await?
             }
-            Kind::Text(text) if text.message() == ".yay" => {
+            Kind::Chat(text) if text.message() == ".yay" => {
                 stream
-                    .send(SendMessage::reply(
-                        text,
+                    .send(SendMessage::chat_message(
+                        message.room(),
                         format_args!("YAY {}!", text.user().to_uppercase()),
                     ))
                     .await?;

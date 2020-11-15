@@ -15,20 +15,27 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn kind(&self) -> Kind<'_> {
+    fn parts(&self) -> (&str, &str) {
         let full_message: &str = &self.raw;
-        let (room, message) = if let Some(without_prefix) = full_message.strip_prefix('>') {
+        if let Some(without_prefix) = full_message.strip_prefix('>') {
             let mut parts = without_prefix.splitn(2, '\n');
             (parts.next().unwrap(), parts.next().unwrap_or(""))
         } else {
             ("", full_message)
-        };
+        }
+    }
+
+    pub fn room(&self) -> RoomId<'_> {
+        RoomId(self.parts().0)
+    }
+
+    pub fn kind(&self) -> Kind<'_> {
+        let message = self.parts().1;
         if let Some(message) = message.strip_prefix('|') {
             let (command, arg) = split2(message);
-            Kind::parse(RoomId(room), command, arg)
-                .unwrap_or(Kind::Unrecognized(UnrecognizedMessage(full_message)))
+            Kind::parse(command, arg).unwrap_or(Kind::Unrecognized(UnrecognizedMessage(message)))
         } else {
-            Kind::Unrecognized(UnrecognizedMessage(full_message))
+            Kind::Unrecognized(UnrecognizedMessage(message))
         }
     }
 }
@@ -47,9 +54,8 @@ fn split2(arg: &str) -> (&str, &str) {
 /// to use this structure when `Message` is not in scope will
 /// cause borrow checker failures.
 pub enum Kind<'a> {
-    /// Text from chat or PMs.
-    Text(Text<'a>),
-
+    Chat(Chat<'a>),
+    Private(Private<'a>),
     /// Login challenge.
     ///
     /// This can be used to authenticate.
@@ -63,10 +69,10 @@ pub enum Kind<'a> {
 }
 
 impl Kind<'_> {
-    fn parse<'a>(room_id: RoomId<'a>, command: &str, arguments: &'a str) -> Option<Kind<'a>> {
+    fn parse<'a>(command: &str, arguments: &'a str) -> Option<Kind<'a>> {
         Some(match command {
-            "c:" => Kind::Text(Text::Chat(Chat::parse(room_id, arguments))),
-            "pm" => Kind::Text(Text::Private(Private::parse(arguments))),
+            "c:" => Kind::Chat(Chat::parse(arguments)),
+            "pm" => Kind::Private(Private::parse(arguments)),
             "challstr" => Kind::Challenge(Challenge(arguments)),
             "html" => Kind::Html(arguments),
             "init" => Kind::RoomInit(RoomInit::parse(arguments)?),
@@ -79,41 +85,17 @@ impl Kind<'_> {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum Text<'a> {
-    Chat(Chat<'a>),
-    Private(Private<'a>),
-}
-
-impl<'a> Text<'a> {
-    pub fn message(&self) -> &'a str {
-        match self {
-            Text::Chat(chat) => chat.message(),
-            Text::Private(private) => private.message,
-        }
-    }
-
-    pub fn user(&self) -> &'a str {
-        match self {
-            Text::Chat(chat) => chat.user(),
-            Text::Private(private) => private.from,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
 pub struct Chat<'a> {
-    room_id: RoomId<'a>,
     timestamp: &'a str,
     user: &'a str,
     message: &'a str,
 }
 
 impl<'a> Chat<'a> {
-    fn parse(room_id: RoomId<'a>, arguments: &'a str) -> Self {
+    fn parse(arguments: &'a str) -> Self {
         let (timestamp, arguments) = split2(arguments);
         let (user, message) = split2(arguments);
         Self {
-            room_id,
             timestamp,
             user,
             message,
@@ -135,10 +117,6 @@ impl<'a> Chat<'a> {
 
     pub fn message(&self) -> &'a str {
         self.message.strip_suffix('\n').unwrap_or(&self.message)
-    }
-
-    pub fn room_id(&self) -> RoomId<'a> {
-        self.room_id
     }
 }
 
