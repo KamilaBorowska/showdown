@@ -6,6 +6,8 @@ use futures_util::sink::SinkExt;
 use reqwest::Client;
 use serde_derive::Deserialize;
 use std::borrow::Cow;
+use std::fmt::Debug;
+use std::iter::FusedIterator;
 use std::str;
 
 /// Owned message type
@@ -387,7 +389,9 @@ impl<'a> RoomsList<'a> {
         serde_json::from_str(arguments).ok()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Room<'a>> {
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = &Room<'a>> + Clone + Debug + DoubleEndedIterator + FusedIterator {
         self.official.iter().chain(&self.pspl).chain(&self.chat)
     }
 }
