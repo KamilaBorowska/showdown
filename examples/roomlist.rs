@@ -1,6 +1,5 @@
 use comparator::collections::BinaryHeap;
 use comparator::{comparing, Comparator};
-use futures::SinkExt;
 use showdown::message::{Kind, QueryResponse, Room};
 use showdown::{connect, ReceiveExt, Result, SendMessage};
 
