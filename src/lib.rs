@@ -14,7 +14,7 @@ use self::message::Message;
 pub use chrono;
 use extension_trait::extension_trait;
 use futures_util::future::TryFutureExt;
-use futures_util::sink::SinkExt;
+use futures_util::sink::Sink;
 use futures_util::stream::Stream as FuturesStream;
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
@@ -38,6 +38,7 @@ type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpSt
 /// # Examples
 ///
 /// ```no_run
+/// use futures::SinkExt;
 /// use showdown::message::{Kind, UpdateUser};
 /// use showdown::{connect, ReceiveExt, Result, RoomId};
 ///
@@ -68,12 +69,29 @@ impl fmt::Debug for Stream {
     }
 }
 
-impl Stream {
-    pub async fn send(&mut self, message: SendMessage) -> Result<()> {
-        self.stream
-            .send(OwnedMessage::Text(message.0))
-            .await
-            .map_err(|e| Error(ErrorInner::WebSocket(e)))
+impl Sink<SendMessage> for Stream {
+    type Error = Error;
+
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream)
+            .poll_ready(cx)
+            .map(Error::from_ws)
+    }
+
+    fn start_send(mut self: Pin<&mut Self>, item: SendMessage) -> Result<()> {
+        Error::from_ws(Pin::new(&mut self.stream).start_send(OwnedMessage::Text(item.0)))
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream)
+            .poll_flush(cx)
+            .map(Error::from_ws)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        Pin::new(&mut self.stream)
+            .poll_close(cx)
+            .map(Error::from_ws)
     }
 }
 
@@ -137,6 +155,7 @@ impl SendMessage {
     /// # Example
     ///
     /// ```no_run
+    /// use futures::SinkExt;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///
@@ -165,6 +184,7 @@ impl SendMessage {
     /// # Examples
     ///
     /// ```no_run
+    /// use futures::SinkExt;
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
     ///
