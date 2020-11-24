@@ -204,7 +204,7 @@ impl<'a> Challenge<'a> {
         login: &'a str,
     ) -> Result<Option<PasswordRequired<'a>>> {
         let response = Client::new()
-            .post("http://play.pokemonshowdown.com/action.php")
+            .post("https://play.pokemonshowdown.com/action.php")
             .form(&[
                 ("act", "getassertion"),
                 ("userid", login),
@@ -236,7 +236,7 @@ impl<'a> Challenge<'a> {
             return self.login(sender, login).await.map(|_| ());
         }
         let response = Client::new()
-            .post("http://play.pokemonshowdown.com/action.php")
+            .post("https://play.pokemonshowdown.com/action.php")
             .form(&[
                 ("act", "login"),
                 ("name", login),
