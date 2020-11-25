@@ -1,12 +1,12 @@
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect, ReceiveExt, Result, SendMessage};
+use showdown::{connect, Result, SendMessage};
 use std::env;
 
 async fn start(login: String, password: String) -> Result<()> {
     let mut stream = connect("showdown").await?;
-    loop {
-        let message = stream.receive().await?;
+    while let Some(message) = stream.next().await {
+        let message = message?;
         match message.kind() {
             Kind::Challenge(ch) => {
                 ch.login_with_password(&mut stream, &login, &password)
@@ -28,6 +28,7 @@ async fn start(login: String, password: String) -> Result<()> {
             _ => {}
         }
     }
+    Ok(())
 }
 
 #[tokio::main]

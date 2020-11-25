@@ -12,14 +12,12 @@ pub mod message;
 use self::message::Message;
 #[cfg(feature = "chrono")]
 pub use chrono;
-use extension_trait::extension_trait;
 use futures_util::future::TryFutureExt;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream as FuturesStream;
 use serde_derive::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
-use std::future::Future;
 use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::task::{Context, Poll};
@@ -38,14 +36,14 @@ type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpSt
 /// # Examples
 ///
 /// ```no_run
-/// use futures::SinkExt;
+/// use futures::{SinkExt, StreamExt};
 /// use showdown::message::{Kind, UpdateUser};
-/// use showdown::{connect, ReceiveExt, Result, RoomId};
+/// use showdown::{connect, Result, RoomId};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
 ///     let mut stream = connect("showdown").await?;
-///     let message = stream.receive().await?;
+///     let message = stream.next().await.unwrap()?;
 ///     match message.kind() {
 ///         Kind::UpdateUser(UpdateUser {
 ///             username,
@@ -116,36 +114,6 @@ impl FuturesStream for Stream {
     }
 }
 
-#[extension_trait(pub)]
-impl<St> ReceiveExt for St
-where
-    St: FuturesStream<Item = Result<Message>> + Unpin,
-{
-    fn receive(&mut self) -> Receive<'_, Self> {
-        Receive { stream: self }
-    }
-}
-
-pub struct Receive<'a, St>
-where
-    St: ?Sized,
-{
-    stream: &'a mut St,
-}
-
-impl<St> Future for Receive<'_, St>
-where
-    St: FuturesStream<Item = Result<Message>> + Unpin,
-{
-    type Output = Result<Message>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Message>> {
-        Pin::new(&mut self.stream)
-            .poll_next(cx)
-            .map(|opt| opt.unwrap_or(Err(Error(ErrorInner::Disconnected))))
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SendMessage(String);
 
@@ -155,17 +123,16 @@ impl SendMessage {
     /// # Example
     ///
     /// ```no_run
-    /// use futures::SinkExt;
+    /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
+    /// use showdown::{connect, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
     ///     let mut stream = connect("showdown").await?;
     ///     stream.send(SendMessage::global_command("cmd rooms")).await?;
-    ///     loop {
-    ///         let received = stream.receive().await?;
-    ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received.kind() {
+    ///     while let Some(received) = stream.next().await {
+    ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received?.kind() {
     ///             assert!(rooms
     ///                 .official
     ///                 .iter()
@@ -173,6 +140,7 @@ impl SendMessage {
     ///             return Ok(());
     ///         }
     ///     }
+    ///     panic!("Server didn't provide a list of rooms");
     /// }
     /// ```
     pub fn global_command(command: impl Display) -> Self {
@@ -184,21 +152,22 @@ impl SendMessage {
     /// # Examples
     ///
     /// ```no_run
-    /// use futures::SinkExt;
+    /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
+    /// use showdown::{connect, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
     ///     let mut stream = connect("showdown").await?;
     ///     stream.send(SendMessage::global_command("join lobby")).await?;
     ///     stream.send(SendMessage::chat_message(RoomId::LOBBY, "roomdesc")).await;
-    ///     loop {
-    ///         if let Kind::Html(html) = stream.receive().await?.kind() {
+    ///     while let Some(message) = stream.next().await {
+    ///         if let Kind::Html(html) = message?.kind() {
     ///             assert!(html.contains("Relax here amidst the chaos."));
     ///             return Ok(());
     ///         }
     ///     }
+    ///     panic!("Server didn't provide a room description");
     /// }
     /// ```
     pub fn chat_message(room_id: RoomId<'_>, message: impl Display) -> Self {

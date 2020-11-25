@@ -157,9 +157,9 @@ impl<'a> Challenge<'a> {
     ///
     /// ```no_run
     /// use rand::prelude::*;
-    /// use futures::SinkExt;
+    /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, NoInit, NoInitKind};
-    /// use showdown::{connect, ReceiveExt, Result, RoomId, SendMessage};
+    /// use showdown::{connect, Result, RoomId, SendMessage};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
@@ -168,7 +168,7 @@ impl<'a> Challenge<'a> {
     ///     let mut received;
     ///     // Get the challenge first
     ///     let challenge = loop {
-    ///         received = stream.receive().await?;
+    ///         received = stream.next().await.unwrap()?;
     ///         if let Kind::Challenge(ch) = received.kind() {
     ///             break ch;
     ///         }
@@ -178,7 +178,7 @@ impl<'a> Challenge<'a> {
     ///         if let Kind::NoInit(NoInit {
     ///             kind: NoInitKind::NameRequired,
     ///             ..
-    ///         }) = stream.receive().await?.kind()
+    ///         }) = stream.next().await.unwrap()?.kind()
     ///         {
     ///             break;
     ///         }
@@ -186,11 +186,12 @@ impl<'a> Challenge<'a> {
     ///     let name = random_username();
     ///     challenge.login(&mut stream, &name).await?;
     ///     stream.send(SendMessage::global_command("join bot dev")).await?;
-    ///     loop {
-    ///         if let Kind::RoomInit(_) = stream.receive().await?.kind() {
+    ///     while let Some(message) = stream.next().await {
+    ///         if let Kind::RoomInit(_) = message?.kind() {
     ///             return Ok(());
     ///         }
     ///     }
+    ///     panic!("Server did allow the bot to enter a room");
     /// }
     ///
     /// fn random_username() -> String {

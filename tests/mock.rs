@@ -1,7 +1,7 @@
 use chrono::{SubsecRound, Utc};
 use futures::{SinkExt, StreamExt};
 use showdown::message::{Kind, QueryResponse, Room};
-use showdown::{ReceiveExt, RoomId, SendMessage, Stream};
+use showdown::{RoomId, SendMessage, Stream};
 use std::borrow::Cow;
 use std::error::Error;
 use std::net::Ipv4Addr;
@@ -30,7 +30,7 @@ async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
             time.timestamp()
         )))
         .await?;
-    let message = stream.receive().await?;
+    let message = stream.next().await.unwrap()?;
     let chat = match message.kind() {
         Kind::Chat(chat) => chat,
         _ => unreachable!(),
@@ -49,7 +49,7 @@ async fn reply_test() -> Result<(), Box<dyn Error>> {
     socket
         .send(Message::Text("|c:|0|+xfix|Hi there".into()))
         .await?;
-    let message = stream.receive().await?;
+    let message = stream.next().await.unwrap()?;
     assert!(matches!(message.kind(), Kind::Chat(_)));
     stream
         .send(SendMessage::chat_message(message.room(), "Hi there"))
@@ -101,7 +101,7 @@ async fn parsing_roomlist() -> Result<(), Box<dyn Error>> {
             .into(),
         ))
         .await?;
-    match stream.receive().await?.kind() {
+    match stream.next().await.unwrap()?.kind() {
         Kind::QueryResponse(QueryResponse::Rooms(rooms_list)) => {
             let mut iter = rooms_list.iter();
             match iter.next() {

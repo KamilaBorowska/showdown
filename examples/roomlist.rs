@@ -1,8 +1,8 @@
 use comparator::collections::BinaryHeap;
 use comparator::{comparing, Comparator};
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
 use showdown::message::{Kind, QueryResponse, Room};
-use showdown::{connect, ReceiveExt, Result, SendMessage};
+use showdown::{connect, Result, SendMessage};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -10,8 +10,8 @@ async fn main() -> Result<()> {
     stream
         .send(SendMessage::global_command("cmd rooms"))
         .await?;
-    loop {
-        if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = stream.receive().await?.kind() {
+    while let Some(message) = stream.next().await {
+        if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = message?.kind() {
             println!("Top 5 most popular rooms");
             let mut rooms_heap = BinaryHeap::with_comparator(
                 comparing(|r: &&Room<'_>| r.user_count)
@@ -25,7 +25,8 @@ async fn main() -> Result<()> {
                     break;
                 }
             }
-            return Ok(());
+            break;
         }
     }
+    Ok(())
 }
