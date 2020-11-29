@@ -28,13 +28,7 @@ pages:
   script:
   - cargo doc --all-features
   - mv target/doc public
-  - |
-    echo "
-      <!DOCTYPE html>
-      <title>Redirection page</title>
-      <meta http-equiv=refresh content='0; url=showdown/'>
-      <p> Please check out <a href='showdown/'>showdown</a> documentation.
-    " > public/index.html
+  - echo /showdown /showdown/showdown 301 > public/_redirects
   artifacts:
     paths:
     - public
