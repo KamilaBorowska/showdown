@@ -159,11 +159,11 @@ impl<'a> Challenge<'a> {
     /// use rand::prelude::*;
     /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, NoInit, NoInitKind};
-    /// use showdown::{connect, Result, RoomId, SendMessage};
+    /// use showdown::{Result, RoomId, SendMessage, Stream};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
-    ///     let mut stream = connect("showdown").await?;
+    ///     let mut stream = Stream::connect("showdown").await?;
     ///     stream.send(SendMessage::global_command("join bot dev")).await?;
     ///     let mut received;
     ///     // Get the challenge first

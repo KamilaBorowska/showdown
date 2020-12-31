@@ -2,11 +2,11 @@ use comparator::collections::BinaryHeap;
 use comparator::{comparing, Comparator};
 use futures::{SinkExt, StreamExt};
 use showdown::message::{Kind, QueryResponse, Room};
-use showdown::{connect, Result, SendMessage};
+use showdown::{Result, SendMessage, Stream};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut stream = connect("showdown").await?;
+    let mut stream = Stream::connect("showdown").await?;
     stream
         .send(SendMessage::global_command("cmd rooms"))
         .await?;

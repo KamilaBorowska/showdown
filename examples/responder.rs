@@ -1,10 +1,10 @@
 use futures::{SinkExt, StreamExt};
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect, Result, SendMessage};
+use showdown::{Result, SendMessage, Stream};
 use std::env;
 
 async fn start(login: String, password: String) -> Result<()> {
-    let mut stream = connect("showdown").await?;
+    let mut stream = Stream::connect("showdown").await?;
     while let Some(message) = stream.next().await {
         let message = message?;
         match message.kind() {

@@ -38,11 +38,11 @@ type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpSt
 /// ```no_run
 /// use futures::{SinkExt, StreamExt};
 /// use showdown::message::{Kind, UpdateUser};
-/// use showdown::{connect, Result, RoomId};
+/// use showdown::{Result, RoomId, Stream};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<()> {
-///     let mut stream = connect("showdown").await?;
+///     let mut stream = Stream::connect("showdown").await?;
 ///     let message = stream.next().await.unwrap()?;
 ///     match message.kind() {
 ///         Kind::UpdateUser(UpdateUser {
@@ -59,6 +59,54 @@ type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpSt
 /// ```
 pub struct Stream {
     stream: SocketStream,
+}
+
+impl Stream {
+    /// Connects to a named Showdown server.
+    ///
+    /// Returns a structure implementing [`Sink`](Sink) and
+    /// [`Stream`](FuturesStream) traits which can be used to send and
+    /// receives messages respectively.
+    ///
+    /// It's possible to use [`StreamExt::split`](futures_util::stream::StreamExt::split)
+    /// to split returned structure into separate `Sink` and `Stream` objects.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use showdown::{Result, Stream};
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     assert!(Stream::connect("showdown").await.is_ok());
+    ///     assert!(Stream::connect("fakestofservers").await.is_err());
+    /// }
+    /// ```
+    pub async fn connect(name: &str) -> Result<Self> {
+        Self::connect_to_url(&fetch_server_url(name).await?).await
+    }
+
+    /// Connects to an URL.
+    ///
+    /// This URL is provided by [`fetch_server_url`] function.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use showdown::{fetch_server_url, Result, Stream};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let url = fetch_server_url("smogtours").await?;
+    ///     assert_eq!(url.as_str(), "ws://sim3.psim.us:8002/showdown/websocket");
+    ///     Stream::connect_to_url(&url).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn connect_to_url(url: &Url) -> Result<Self> {
+        let stream = Error::from_ws(tokio_tungstenite::connect_async(url).await)?.0;
+        Ok(Self { stream })
+    }
 }
 
 impl fmt::Debug for Stream {
@@ -125,11 +173,11 @@ impl SendMessage {
     /// ```no_run
     /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, Result, RoomId, SendMessage};
+    /// use showdown::{Result, RoomId, SendMessage, Stream};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
-    ///     let mut stream = connect("showdown").await?;
+    ///     let mut stream = Stream::connect("showdown").await?;
     ///     stream.send(SendMessage::global_command("cmd rooms")).await?;
     ///     while let Some(received) = stream.next().await {
     ///         if let Kind::QueryResponse(QueryResponse::Rooms(rooms)) = received?.kind() {
@@ -154,11 +202,11 @@ impl SendMessage {
     /// ```no_run
     /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, QueryResponse};
-    /// use showdown::{connect, Result, RoomId, SendMessage};
+    /// use showdown::{Result, RoomId, SendMessage, Stream};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<()> {
-    ///     let mut stream = connect("showdown").await?;
+    ///     let mut stream = Stream::connect("showdown").await?;
     ///     stream.send(SendMessage::global_command("join lobby")).await?;
     ///     stream.send(SendMessage::chat_message(RoomId::LOBBY, "roomdesc")).await;
     ///     while let Some(message) = stream.next().await {
@@ -208,8 +256,9 @@ impl SendMessage {
 ///     assert!(connect("fakestofservers").await.is_err());
 /// }
 /// ```
+#[deprecated(since = "0.12.1", note = "Please use Stream::connect instead")]
 pub async fn connect(name: &str) -> Result<Stream> {
-    connect_to_url(&fetch_server_url(name).await?).await
+    Stream::connect(name).await
 }
 
 /// Connects to an URL.
@@ -229,9 +278,9 @@ pub async fn connect(name: &str) -> Result<Stream> {
 ///     Ok(())
 /// }
 /// ```
+#[deprecated(since = "0.12.1", note = "Please use Stream::connect_to_url instead")]
 pub async fn connect_to_url(url: &Url) -> Result<Stream> {
-    let stream = Error::from_ws(tokio_tungstenite::connect_async(url).await)?.0;
-    Ok(Stream { stream })
+    Stream::connect_to_url(url).await
 }
 
 pub async fn fetch_server_url(name: &str) -> Result<Url> {
