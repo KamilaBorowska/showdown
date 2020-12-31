@@ -190,10 +190,12 @@ impl SendMessage {
 
 /// Connects to a named Showdown server.
 ///
-/// Returns two structures, [`Sender`] can be used to send messages to Showdown,
-/// while [`Receiver`] can be used to retrieve messages from Showdown. Due to
-/// borrow checker, those structures are separate - it's practically necessary
-/// to implement anything interesting.
+/// Returns a structure implementing [`Sink`](Sink) and
+/// [`Stream`](FuturesStream) traits which can be used to send and
+/// receives messages respectively.
+///
+/// It's possible to use [`StreamExt::split`](futures_util::stream::StreamExt::split)
+/// to split returned structure into separate `Sink` and `Stream` objects.
 ///
 /// # Examples
 ///
