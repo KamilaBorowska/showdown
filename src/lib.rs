@@ -1,3 +1,5 @@
+#![deny(clippy::future_not_send)]
+
 //! Pokémon Showdown client.
 //!
 //! # Stability
