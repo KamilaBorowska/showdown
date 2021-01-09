@@ -238,53 +238,6 @@ impl SendMessage {
     }
 }
 
-/// Connects to a named Showdown server.
-///
-/// Returns a structure implementing [`Sink`](Sink) and
-/// [`Stream`](FuturesStream) traits which can be used to send and
-/// receives messages respectively.
-///
-/// It's possible to use [`StreamExt::split`](futures_util::stream::StreamExt::split)
-/// to split returned structure into separate `Sink` and `Stream` objects.
-///
-/// # Examples
-///
-/// ```no_run
-/// use showdown::{connect, Result};
-///
-/// #[tokio::main]
-/// async fn main() {
-///     assert!(connect("showdown").await.is_ok());
-///     assert!(connect("fakestofservers").await.is_err());
-/// }
-/// ```
-#[deprecated(since = "0.12.1", note = "Please use Stream::connect instead")]
-pub async fn connect(name: &str) -> Result<Stream> {
-    Stream::connect(name).await
-}
-
-/// Connects to an URL.
-///
-/// This URL is provided by [`fetch_server_url`] function.
-///
-/// # Examples
-///
-/// ```no_run
-/// use showdown::{connect_to_url, fetch_server_url, Result};
-///
-/// #[tokio::main]
-/// async fn main() -> Result<()> {
-///     let url = fetch_server_url("smogtours").await?;
-///     assert_eq!(url.as_str(), "ws://sim3.psim.us:8002/showdown/websocket");
-///     connect_to_url(&url).await?;
-///     Ok(())
-/// }
-/// ```
-#[deprecated(since = "0.12.1", note = "Please use Stream::connect_to_url instead")]
-pub async fn connect_to_url(url: &Url) -> Result<Stream> {
-    Stream::connect_to_url(url).await
-}
-
 pub async fn fetch_server_url(name: &str) -> Result<Url> {
     let owned_url;
     let url = if name == "showdown" {
