@@ -10,7 +10,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 
 async fn mock_connection() -> Result<(WebSocketStream<TcpStream>, Stream), Box<dyn Error>> {
-    let mut listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     let uri = format!("ws://127.0.0.1:{}", port).parse()?;
     let (socket, stream) = tokio::join!(
