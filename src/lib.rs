@@ -17,7 +17,7 @@ pub use chrono;
 use futures_util::future::TryFutureExt;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream as FuturesStream;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;

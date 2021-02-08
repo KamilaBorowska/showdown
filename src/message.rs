@@ -4,7 +4,7 @@ use chrono::{offset::Utc, DateTime, NaiveDateTime};
 use futures_util::future::TryFutureExt;
 use futures_util::sink::SinkExt;
 use reqwest::Client;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::iter::FusedIterator;
