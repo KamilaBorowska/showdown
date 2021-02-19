@@ -243,13 +243,11 @@ pub async fn fetch_server_url(name: &str) -> Result<Url> {
     let url = if name == "showdown" {
         "wss://sim3.psim.us/showdown/websocket"
     } else {
-        let Server { host, port } = reqwest::get(&format!(
-            "https://pokemonshowdown.com/servers/{}.json",
-            name
-        ))
-        .and_then(|r| r.json())
-        .await
-        .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
+        let server_info_url = format!("https://pokemonshowdown.com/servers/{}.json", name);
+        let Server { host, port } = reqwest::get(&server_info_url)
+            .and_then(|r| r.json())
+            .await
+            .map_err(|e| Error(ErrorInner::Reqwest(e)))?;
         let protocol = if port == 443 { "wss" } else { "ws" };
         // Concatenation is fine, as it's also done by the official Showdown client
         owned_url = format!("{}://{}:{}/showdown/websocket", protocol, host, port);
