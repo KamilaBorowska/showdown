@@ -15,6 +15,7 @@ use self::message::Message;
 #[cfg(feature = "chrono")]
 pub use chrono;
 use futures_util::future::TryFutureExt;
+use futures_util::ready;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream as FuturesStream;
 use serde::Deserialize;
@@ -26,6 +27,8 @@ use std::task::{Context, Poll};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
 use tokio_tungstenite::stream::Stream as TungsteniteStream;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as OwnedMessage};
 use tokio_tungstenite::WebSocketStream;
 pub use url;
@@ -147,15 +150,16 @@ impl FuturesStream for Stream {
     type Item = Result<Message>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Pin::new(&mut self.stream).poll_next(cx).map(|opt| {
-            opt.map(|e| {
-                let message = Error::from_ws(e)?;
-                if let OwnedMessage::Text(raw) = message {
-                    Ok(Message { raw })
-                } else {
-                    Err(Error(ErrorInner::UnrecognizedMessage(message)))
-                }
-            })
+        Poll::Ready(loop {
+            match Error::from_ws(ready!(Pin::new(&mut self.stream).poll_next(cx)).transpose())? {
+                Some(OwnedMessage::Text(raw)) => break Some(Ok(Message { raw })),
+                Some(OwnedMessage::Close(Some(CloseFrame {
+                    code: CloseCode::Normal,
+                    ..
+                }))) => {}
+                Some(message) => break Some(Err(Error(ErrorInner::UnrecognizedMessage(message)))),
+                None => break None,
+            }
         })
     }
 
