@@ -6,6 +6,8 @@ use std::borrow::Cow;
 use std::error::Error;
 use std::net::Ipv4Addr;
 use tokio::net::{TcpListener, TcpStream};
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 
@@ -127,5 +129,19 @@ async fn parsing_roomlist() -> Result<(), Box<dyn Error>> {
         }
         _ => unreachable!(),
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn parsing_close_message() -> Result<(), Box<dyn Error>> {
+    let (mut socket, mut stream) = mock_connection().await?;
+    socket
+        .close(Some(CloseFrame {
+            code: CloseCode::Normal,
+            reason: "Normal closure".into(),
+        }))
+        .await?;
+    drop(socket);
+    assert!(stream.next().await.is_none());
     Ok(())
 }
