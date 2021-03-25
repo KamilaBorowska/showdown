@@ -25,16 +25,14 @@ use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::task::{Context, Poll};
 use tokio::net::TcpStream;
-use tokio_native_tls::TlsStream;
-use tokio_tungstenite::stream::Stream as TungsteniteStream;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as OwnedMessage};
-use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 pub use url;
 use url::Url;
 
-type SocketStream = WebSocketStream<TungsteniteStream<TcpStream, TlsStream<TcpStream>>>;
+type SocketStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 /// Message stream.
 ///
