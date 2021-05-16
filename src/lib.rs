@@ -199,6 +199,11 @@ impl SendMessage {
         SendMessage(format!("|/{}", command))
     }
 
+    /// Creates a chat room message.
+    pub fn chat_message(room_id: RoomId<'_>, message: impl Display) -> Self {
+        Self::prefixed(room_id, ' ', message)
+    }
+
     /// Creates a command that executes in a chat room.
     ///
     /// # Examples
@@ -212,7 +217,7 @@ impl SendMessage {
     /// async fn main() -> Result<()> {
     ///     let mut stream = Stream::connect("showdown").await?;
     ///     stream.send(SendMessage::global_command("join lobby")).await?;
-    ///     stream.send(SendMessage::chat_message(RoomId::LOBBY, "roomdesc")).await;
+    ///     stream.send(SendMessage::chat_command(RoomId::LOBBY, "roomdesc")).await;
     ///     while let Some(message) = stream.next().await {
     ///         if let Kind::Html(html) = message?.kind() {
     ///             assert!(html.contains("Relax here amidst the chaos."));
@@ -222,11 +227,6 @@ impl SendMessage {
     ///     panic!("Server didn't provide a room description");
     /// }
     /// ```
-    pub fn chat_message(room_id: RoomId<'_>, message: impl Display) -> Self {
-        Self::prefixed(room_id, ' ', message)
-    }
-
-    /// Creates a chat room command message.
     pub fn chat_command(room_id: RoomId<'_>, command: impl Display) -> Self {
         Self::prefixed(room_id, '/', command)
     }
