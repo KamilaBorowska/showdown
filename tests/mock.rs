@@ -58,7 +58,7 @@ async fn reply_test() -> Result<(), Box<dyn Error>> {
         .await?;
     assert_eq!(
         socket.next().await.transpose()?,
-        Some(Message::Text("| Hi there".into())),
+        Some(Message::Text("lobby| Hi there".into())),
     );
     Ok(())
 }

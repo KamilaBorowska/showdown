@@ -23,7 +23,7 @@ impl Message {
             let mut parts = without_prefix.splitn(2, '\n');
             (parts.next().unwrap(), parts.next().unwrap_or(""))
         } else {
-            ("", full_message)
+            (RoomId::LOBBY.0, full_message)
         }
     }
 

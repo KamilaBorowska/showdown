@@ -268,7 +268,7 @@ struct Server {
 pub struct RoomId<'a>(pub &'a str);
 
 impl RoomId<'_> {
-    pub const LOBBY: RoomId<'static> = RoomId("");
+    pub const LOBBY: RoomId<'static> = RoomId("lobby");
 }
 
 pub type Result<T> = StdResult<T, Error>;
