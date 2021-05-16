@@ -290,7 +290,6 @@ enum ErrorInner {
     Url(url::ParseError),
     Json(serde_json::Error),
     UnrecognizedMessage(OwnedMessage),
-    Disconnected,
 }
 
 impl Display for Error {
@@ -301,7 +300,6 @@ impl Display for Error {
             ErrorInner::Url(e) => e.fmt(f),
             ErrorInner::Json(e) => e.fmt(f),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
-            ErrorInner::Disconnected => write!(f, "Disconnected"),
         }
     }
 }
@@ -313,7 +311,7 @@ impl StdError for Error {
             ErrorInner::Reqwest(e) => Some(e),
             ErrorInner::Url(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
-            ErrorInner::UnrecognizedMessage(_) | ErrorInner::Disconnected => None,
+            ErrorInner::UnrecognizedMessage(_) => None,
         }
     }
 }
