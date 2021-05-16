@@ -1,7 +1,7 @@
 before_script:
 - rustc --version && cargo --version
 
-image: rust:1.45
+image: rust
 
 test:
   script:
