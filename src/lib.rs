@@ -295,10 +295,10 @@ enum ErrorInner {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            ErrorInner::WebSocket(e) => e.fmt(f),
-            ErrorInner::Reqwest(e) => e.fmt(f),
-            ErrorInner::Url(e) => e.fmt(f),
-            ErrorInner::Json(e) => e.fmt(f),
+            ErrorInner::WebSocket(_) => write!(f, "Websocket error"),
+            ErrorInner::Reqwest(_) => write!(f, "HTTPS request error"),
+            ErrorInner::Url(_) => write!(f, "Couldn't get a valid server URL"),
+            ErrorInner::Json(_) => write!(f, "Couldn't parse login assertion"),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
         }
     }
