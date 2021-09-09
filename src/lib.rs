@@ -14,10 +14,12 @@ pub mod message;
 use self::message::Message;
 #[cfg(feature = "chrono")]
 pub use chrono;
+#[cfg(feature = "__tls")]
 use futures_util::future::TryFutureExt;
 use futures_util::ready;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream as FuturesStream;
+#[cfg(feature = "__tls")]
 use serde::Deserialize;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -38,7 +40,8 @@ type SocketStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 ///
 /// # Examples
 ///
-/// ```no_run
+#[cfg_attr(feature = "__tls", doc = "```no_run")]
+#[cfg_attr(not(feature = "__tls"), doc = "```compile_fail")]
 /// use futures::{SinkExt, StreamExt};
 /// use showdown::message::{Kind, UpdateUser};
 /// use showdown::{Result, RoomId, Stream};
@@ -74,6 +77,8 @@ impl Stream {
     /// It's possible to use [`StreamExt::split`](futures_util::stream::StreamExt::split)
     /// to split returned structure into separate `Sink` and `Stream` objects.
     ///
+    /// Requires `native-tls`, `native-tls-vendored` or `rustls-tls` feature.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -85,17 +90,22 @@ impl Stream {
     ///     assert!(Stream::connect("fakestofservers").await.is_err());
     /// }
     /// ```
+    #[cfg(feature = "__tls")]
     pub async fn connect(name: &str) -> Result<Self> {
         Self::connect_to_url(&fetch_server_url(name).await?).await
     }
 
     /// Connects to an URL.
     ///
-    /// This URL is provided by [`fetch_server_url`] function.
+    /// This URL is provided by
+    #[cfg_attr(feature = "__tls", doc = " [`fetch_server_url`]")]
+    #[cfg_attr(not(feature = "__tls"), doc = "`fetch_server_url`")]
+    /// function.
     ///
     /// # Examples
     ///
-    /// ```no_run
+    #[cfg_attr(feature = "__tls", doc = "```no_run")]
+    #[cfg_attr(not(feature = "__tls"), doc = "```compile_fail")]
     /// use showdown::{fetch_server_url, Result, Stream};
     ///
     /// #[tokio::main]
@@ -174,7 +184,8 @@ impl SendMessage {
     ///
     /// # Example
     ///
-    /// ```no_run
+    #[cfg_attr(feature = "__tls", doc = "```no_run")]
+    #[cfg_attr(not(feature = "__tls"), doc = "```compile_fail")]
     /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{Result, RoomId, SendMessage, Stream};
@@ -208,7 +219,8 @@ impl SendMessage {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    #[cfg_attr(feature = "__tls", doc = "```no_run")]
+    #[cfg_attr(not(feature = "__tls"), doc = "```compile_fail")]
     /// use futures::{SinkExt, StreamExt};
     /// use showdown::message::{Kind, QueryResponse};
     /// use showdown::{Result, RoomId, SendMessage, Stream};
@@ -240,6 +252,8 @@ impl SendMessage {
     }
 }
 
+/// Requires `native-tls`, `native-tls-vendored` or `rustls-tls` feature.
+#[cfg(feature = "__tls")]
 pub async fn fetch_server_url(name: &str) -> Result<Url> {
     let owned_url;
     let url = if name == "showdown" {
@@ -258,6 +272,7 @@ pub async fn fetch_server_url(name: &str) -> Result<Url> {
     Url::parse(url).map_err(|e| Error(ErrorInner::Url(e)))
 }
 
+#[cfg(feature = "__tls")]
 #[derive(Deserialize)]
 struct Server {
     host: String,
@@ -287,6 +302,7 @@ impl Error {
 enum ErrorInner {
     WebSocket(WsError),
     Reqwest(reqwest::Error),
+    #[cfg(feature = "__tls")]
     Url(url::ParseError),
     Json(serde_json::Error),
     UnrecognizedMessage(OwnedMessage),
@@ -297,6 +313,7 @@ impl Display for Error {
         match &self.0 {
             ErrorInner::WebSocket(_) => write!(f, "Websocket error"),
             ErrorInner::Reqwest(_) => write!(f, "HTTPS request error"),
+            #[cfg(feature = "__tls")]
             ErrorInner::Url(_) => write!(f, "Couldn't get a valid server URL"),
             ErrorInner::Json(_) => write!(f, "Couldn't parse login assertion"),
             ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
@@ -309,6 +326,7 @@ impl StdError for Error {
         match &self.0 {
             ErrorInner::WebSocket(e) => Some(e),
             ErrorInner::Reqwest(e) => Some(e),
+            #[cfg(feature = "__tls")]
             ErrorInner::Url(e) => Some(e),
             ErrorInner::Json(e) => Some(e),
             ErrorInner::UnrecognizedMessage(_) => None,

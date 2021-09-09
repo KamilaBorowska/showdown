@@ -153,6 +153,8 @@ pub struct Challenge<'a>(&'a str);
 impl<'a> Challenge<'a> {
     /// Logs in an user.
     ///
+    /// Requires `native-tls`, `native-tls-vendored` or `rustls-tls` feature.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -201,6 +203,7 @@ impl<'a> Challenge<'a> {
     ///         .collect()
     /// }
     /// ```
+    #[cfg(feature = "__tls")]
     pub async fn login(
         self,
         stream: &'a mut Stream,
