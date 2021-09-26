@@ -21,11 +21,11 @@ use futures_util::sink::Sink;
 use futures_util::stream::Stream as FuturesStream;
 #[cfg(feature = "__tls")]
 use serde::Deserialize;
-use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::task::{Context, Poll};
+use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
@@ -289,7 +289,8 @@ impl RoomId<'_> {
 pub type Result<T> = StdResult<T, Error>;
 
 /// A specialized `Result` type for Showdown client operations.
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error(transparent)]
 pub struct Error(ErrorInner);
 
 impl Error {
@@ -298,38 +299,17 @@ impl Error {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 enum ErrorInner {
-    WebSocket(WsError),
-    Reqwest(reqwest::Error),
+    #[error("Websocket error")]
+    WebSocket(#[source] WsError),
+    #[error("HTTPS request error")]
+    Reqwest(#[source] reqwest::Error),
     #[cfg(feature = "__tls")]
-    Url(url::ParseError),
-    Json(serde_json::Error),
+    #[error("Couldn't get a valid server URL")]
+    Url(#[source] url::ParseError),
+    #[error("Couldn't parse login assertion")]
+    Json(#[source] serde_json::Error),
+    #[error("Unrecognized message: {0:?}")]
     UnrecognizedMessage(OwnedMessage),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            ErrorInner::WebSocket(_) => write!(f, "Websocket error"),
-            ErrorInner::Reqwest(_) => write!(f, "HTTPS request error"),
-            #[cfg(feature = "__tls")]
-            ErrorInner::Url(_) => write!(f, "Couldn't get a valid server URL"),
-            ErrorInner::Json(_) => write!(f, "Couldn't parse login assertion"),
-            ErrorInner::UnrecognizedMessage(e) => write!(f, "Unrecognized message: {:?}", e),
-        }
-    }
-}
-
-impl StdError for Error {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match &self.0 {
-            ErrorInner::WebSocket(e) => Some(e),
-            ErrorInner::Reqwest(e) => Some(e),
-            #[cfg(feature = "__tls")]
-            ErrorInner::Url(e) => Some(e),
-            ErrorInner::Json(e) => Some(e),
-            ErrorInner::UnrecognizedMessage(_) => None,
-        }
-    }
 }
