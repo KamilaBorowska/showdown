@@ -1,8 +1,13 @@
-use crate::{Error, ErrorInner, Result, RoomId, SendMessage, Stream};
+#[cfg(feature = "__tls")]
+use crate::{Error, ErrorInner, Result, SendMessage};
+use crate::{RoomId, Stream};
 #[cfg(feature = "chrono")]
 use chrono::{offset::Utc, DateTime, NaiveDateTime};
+#[cfg(feature = "__tls")]
 use futures_util::future::TryFutureExt;
+#[cfg(feature = "__tls")]
 use futures_util::sink::SinkExt;
+#[cfg(feature = "__tls")]
 use reqwest::Client;
 use serde::Deserialize;
 use std::borrow::Cow;
@@ -232,6 +237,8 @@ impl<'a> Challenge<'a> {
         }
     }
 
+    /// Requires `native-tls`, `native-tls-vendored` or `rustls-tls` feature.
+    #[cfg(feature = "__tls")]
     pub async fn login_with_password(
         self,
         sender: &mut Stream,
@@ -260,6 +267,7 @@ impl<'a> Challenge<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct PasswordRequired<'a> {
     challstr: Challenge<'a>,
     login: &'a str,
@@ -267,6 +275,8 @@ pub struct PasswordRequired<'a> {
 }
 
 impl PasswordRequired<'_> {
+    /// Requires `native-tls`, `native-tls-vendored` or `rustls-tls` feature.
+    #[cfg(feature = "__tls")]
     pub async fn login_with_password(&mut self, password: &str) -> Result<()> {
         self.challstr
             .login_with_password(self.stream, self.login, password)
@@ -274,6 +284,7 @@ impl PasswordRequired<'_> {
     }
 }
 
+#[cfg(feature = "__tls")]
 #[derive(Deserialize)]
 struct LoginServerResponse<'a> {
     #[serde(borrow)]

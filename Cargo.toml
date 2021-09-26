@@ -13,12 +13,12 @@ native-tls = ["__tls", "reqwest/native-tls", "tokio-tungstenite/native-tls"]
 native-tls-vendored = ["__tls", "reqwest/native-tls-vendored", "tokio-tungstenite/native-tls-vendored"]
 rustls-tls-webpki-roots = ["__tls", "reqwest/rustls-tls-webpki-roots", "tokio-tungstenite/rustls-tls"]
 # Internal feature, do not use
-__tls = []
+__tls = ["reqwest"]
 
 [dependencies]
 chrono = { version = "0.4.1", optional = true }
 futures-util = { version = "0.3.0", default-features = false, features = [ "sink" ] }
-reqwest = { version = "0.11.0", default-features = false, features = [ "json" ] }
+reqwest = { version = "0.11.0", default-features = false, features = [ "json" ], optional = true }
 serde = { version = "1.0.0", features = ["derive"] }
 serde_json = "1.0.0"
 thiserror = "1.0.29"

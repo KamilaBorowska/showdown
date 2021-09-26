@@ -303,11 +303,13 @@ impl Error {
 enum ErrorInner {
     #[error("Websocket error")]
     WebSocket(#[source] WsError),
+    #[cfg(feature = "__tls")]
     #[error("HTTPS request error")]
     Reqwest(#[source] reqwest::Error),
     #[cfg(feature = "__tls")]
     #[error("Couldn't get a valid server URL")]
     Url(#[source] url::ParseError),
+    #[cfg(feature = "__tls")]
     #[error("Couldn't parse login assertion")]
     Json(#[source] serde_json::Error),
     #[error("Unrecognized message: {0:?}")]
