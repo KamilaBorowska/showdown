@@ -195,7 +195,7 @@ impl<'a> Challenge<'a> {
     ///             return Ok(());
     ///         }
     ///     }
-    ///     panic!("Server did allow the bot to enter a room");
+    ///     panic!("Server did allow the bot to enter a room")
     /// }
     ///
     /// fn random_username() -> String {

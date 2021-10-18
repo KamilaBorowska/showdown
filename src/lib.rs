@@ -203,7 +203,7 @@ impl SendMessage {
     ///             return Ok(());
     ///         }
     ///     }
-    ///     panic!("Server didn't provide a list of rooms");
+    ///     panic!("Server didn't provide a list of rooms")
     /// }
     /// ```
     pub fn global_command(command: impl Display) -> Self {
@@ -236,7 +236,7 @@ impl SendMessage {
     ///             return Ok(());
     ///         }
     ///     }
-    ///     panic!("Server didn't provide a room description");
+    ///     panic!("Server didn't provide a room description")
     /// }
     /// ```
     pub fn chat_command(room_id: RoomId<'_>, command: impl Display) -> Self {
