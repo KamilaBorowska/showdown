@@ -12,8 +12,6 @@
 pub mod message;
 
 use self::message::Message;
-#[cfg(feature = "chrono")]
-pub use chrono;
 #[cfg(feature = "__tls")]
 use futures_util::future::TryFutureExt;
 use futures_util::ready;
@@ -26,6 +24,8 @@ use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::task::{Context, Poll};
 use thiserror::Error;
+#[cfg(feature = "time")]
+pub use time;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;

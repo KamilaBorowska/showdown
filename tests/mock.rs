@@ -1,4 +1,3 @@
-use chrono::{SubsecRound, Utc};
 use futures::{SinkExt, StreamExt};
 use showdown::message::{Kind, QueryResponse, Room};
 use showdown::{RoomId, SendMessage, Stream};
@@ -25,12 +24,8 @@ async fn mock_connection() -> Result<(WebSocketStream<TcpStream>, Stream), Box<d
 #[tokio::test]
 async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
     let (mut socket, mut stream) = mock_connection().await?;
-    let time = Utc::now().trunc_subsecs(0);
     socket
-        .send(Message::Text(format!(
-            "|c:|{}|+xfix|Hello|world",
-            time.timestamp()
-        )))
+        .send(Message::Text("|c:|1634571729|+xfix|Hello|world".into()))
         .await?;
     let message = stream.next().await.unwrap()?;
     let chat = match message.kind() {
@@ -38,8 +33,11 @@ async fn parsing_chat_messages() -> Result<(), Box<dyn Error>> {
         _ => unreachable!(),
     };
     assert_eq!(message.room().0, RoomId::LOBBY.0);
-    #[cfg(feature = "chrono")]
-    assert_eq!(chat.timestamp(), time);
+    #[cfg(feature = "time")]
+    assert_eq!(
+        chat.timestamp(),
+        time::macros::datetime!(2021-10-18 15:42:09 UTC),
+    );
     assert_eq!(chat.user(), "+xfix");
     assert_eq!(chat.message(), "Hello|world");
     Ok(())

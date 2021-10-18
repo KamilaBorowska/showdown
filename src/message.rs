@@ -1,8 +1,6 @@
 #[cfg(feature = "__tls")]
 use crate::{Error, ErrorInner, Result, SendMessage};
 use crate::{RoomId, Stream};
-#[cfg(feature = "chrono")]
-use chrono::{offset::Utc, DateTime, NaiveDateTime};
 #[cfg(feature = "__tls")]
 use futures_util::future::TryFutureExt;
 #[cfg(feature = "__tls")]
@@ -14,6 +12,8 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::iter::FusedIterator;
 use std::str;
+#[cfg(feature = "time")]
+use time::OffsetDateTime;
 
 /// Owned message type
 #[derive(Debug)]
@@ -118,13 +118,10 @@ impl<'a> Chat<'a> {
         }
     }
 
-    #[cfg(feature = "chrono")]
-    /// Provides chat message timestamp, requires chrono feature.
-    pub fn timestamp(&self) -> DateTime<Utc> {
-        DateTime::from_utc(
-            NaiveDateTime::from_timestamp(self.timestamp.parse().unwrap(), 0),
-            Utc,
-        )
+    #[cfg(feature = "time")]
+    /// Provides chat message timestamp, requires time feature.
+    pub fn timestamp(&self) -> OffsetDateTime {
+        OffsetDateTime::from_unix_timestamp(self.timestamp.parse().unwrap()).unwrap()
     }
 
     pub fn user(&self) -> &'a str {
