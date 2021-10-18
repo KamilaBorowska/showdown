@@ -129,7 +129,7 @@ impl<'a> Chat<'a> {
     }
 
     pub fn message(&self) -> &'a str {
-        self.message.strip_suffix('\n').unwrap_or(&self.message)
+        self.message.strip_suffix('\n').unwrap_or(self.message)
     }
 }
 
