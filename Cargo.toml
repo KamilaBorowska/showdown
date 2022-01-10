@@ -11,7 +11,8 @@ edition = "2018"
 default = ["native-tls"]
 native-tls = ["__tls", "reqwest/native-tls", "tokio-tungstenite/native-tls"]
 native-tls-vendored = ["__tls", "reqwest/native-tls-vendored", "tokio-tungstenite/native-tls-vendored"]
-rustls-tls-webpki-roots = ["__tls", "reqwest/rustls-tls-webpki-roots", "tokio-tungstenite/rustls-tls"]
+rustls-tls-native-roots = ["__tls", "reqwest/rustls-tls-native-roots", "tokio-tungstenite/rustls-tls-native-roots"]
+rustls-tls-webpki-roots = ["__tls", "reqwest/rustls-tls-webpki-roots", "tokio-tungstenite/rustls-tls-webpki-roots"]
 # Internal feature, do not use
 __tls = ["reqwest"]
 
@@ -23,7 +24,7 @@ serde_json = "1.0.0"
 thiserror = "1.0.29"
 time = { version = "0.3.3", default-features = false, optional = true }
 tokio = "1.0.1"
-tokio-tungstenite = "0.15.0"
+tokio-tungstenite = "0.16.1"
 url = "2.1.0"
 
 [dev-dependencies]
