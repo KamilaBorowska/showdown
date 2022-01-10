@@ -290,9 +290,9 @@ struct LoginServerResponse<'a> {
 
 #[derive(Debug)]
 pub struct RoomInit<'a> {
-    room_type: RoomType,
-    title: &'a str,
-    users: &'a str,
+    pub room_type: RoomType,
+    pub title: &'a str,
+    pub users: &'a str,
 }
 
 impl RoomInit<'_> {
