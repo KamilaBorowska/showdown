@@ -102,6 +102,7 @@ impl Kind<'_> {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Chat<'a> {
+    #[cfg(feature = "time")]
     timestamp: &'a str,
     user: &'a str,
     message: &'a str,
@@ -109,10 +110,11 @@ pub struct Chat<'a> {
 
 impl<'a> Chat<'a> {
     fn parse(arguments: &'a str) -> Self {
-        let (timestamp, arguments) = split2(arguments);
+        let (_timestamp, arguments) = split2(arguments);
         let (user, message) = split2(arguments);
         Self {
-            timestamp,
+            #[cfg(feature = "time")]
+            timestamp: _timestamp,
             user,
             message,
         }
