@@ -6,6 +6,7 @@ description = "Pokemon Showdown Client"
 license = "MIT/Apache-2.0"
 repository = "https://gitlab.com/KonradBorowski/showdown"
 categories = ["web-programming::http-client", "web-programming::websocket"]
+keywords = ["pokemon-showdown", "client"]
 edition = "2018"
 
 [features]
