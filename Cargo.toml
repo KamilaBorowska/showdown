@@ -37,7 +37,7 @@ time = { version = "0.3.3", features = [ "macros" ] }
 tokio = { version = "1.0.1", features = [ "macros", "rt-multi-thread" ] }
 
 [badges.maintenance]
-status = "experimental"
+status = "deprecated"
 
 [package.metadata.docs.rs]
 features = ["time"]
